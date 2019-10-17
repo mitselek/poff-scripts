@@ -105,3 +105,4 @@ venv.bak/
 exports.sh
 ignore
 .DS_Store
+.remote-sync.json
