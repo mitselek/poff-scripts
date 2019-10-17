@@ -102,3 +102,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+exports.sh
+ignore
+.DS_Store
