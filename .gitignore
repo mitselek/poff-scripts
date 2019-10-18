@@ -106,3 +106,5 @@ exports.sh
 ignore
 .DS_Store
 .remote-sync.json
+
+data
