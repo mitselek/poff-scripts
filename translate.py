@@ -21,14 +21,15 @@ class ExtendedDict(dict):
         except KeyError:
             return default
 
-    get = multi_level_get
-
 
 translations = {}
 for lang in ('et','en','ru'):
     with open(r'translate.{lang}.yaml'.format(lang=lang)) as file:
         translations[lang] = yaml.load(file)
 
+translations = ExtendedDict(translations)
+
 def strings(key, lang):
     path = '{lang}.{key}'.format(lang=lang, key=key).split('.')
-    return translations.get(path, '[{key}]'.format(key=key))
+    default = '[{key}]'.format(key=key)
+    return translations.multi_level_get(path, default)
