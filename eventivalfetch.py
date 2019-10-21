@@ -4,13 +4,21 @@ import urllib.request, json, csv
 import time
 from functools import wraps
 
-import xml.etree.ElementTree as ET
+import xmltodict
 
-# import html2text
-# h = html2text.HTML2Text()
-# from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 
 def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
+    """
+    Retry calling the decorated function using an exponential backoff.
+
+    Args:
+        exceptions: The exception to check. may be a tuple of exceptions to check.
+        tries: Number of times to try (not retry) before giving up.
+        delay: Initial delay between retries in seconds.
+        backoff: Backoff multiplier (e.g. value of 2 will double the delay each retry).
+        logger: Logger to use. If None, print.
+    """
     def deco_retry(f):
 
         @wraps(f)
@@ -39,42 +47,52 @@ def urlopen_with_retry(userUrl):
     return urllib.request.urlopen(userUrl)
 
 datadir = 'data'
-
-
+db = {
+    'host': os.getenv('FILMS_DB_HOST'),
+    'user': os.getenv('FILMS_DB_USER'),
+    'passwd': os.getenv('FILMS_DB_PASSWORD'),
+    'database': os.getenv('FILMS_DB_NAME')
+}
 import mysql.connector
 
 mydb = mysql.connector.connect(
-  host = os.environ(FILMS_DB_HOST),
-  user = os.environ(FILMS_DB_USER),
-  passwd = os.environ(FILMS_DB_PASSWORD),
-  database = os.environ(FILMS_DB_NAME)
+  host = db['host'],
+  user = db['user'],
+  passwd = db['passwd'],
+  database = db['database']
 )
 # print(mydb)
 mycursor = mydb.cursor()
 
+# Eventival subfestival codes
+subfests = {
+    1839: 'Shorts',
+    10: 'PÖFF',
+    9: 'Just Film',
+}
 
-def fetch_base():
-    tasks = {
-        'venues' : {
-            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
-            'json': 'venues.json',
-            'root_path': 'venues.venue'
-        },
-        'publications' : {
-            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/9/publications-locked.xml',
-            'json': 'publications.json',
-            'root_path': 'films.item'
-        },
-        'screenings' : {
-            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/9/screenings.xml',
-            'json': 'screenings.json',
-            'root_path': 'screenings.screening'
-        }
+tasks = {
+    'venues' : {
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
+        'json': 'venues.json',
+        'root_path': 'venues.venue'
+    },
+    'publications' : {
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
+        'json': 'publications.json',
+        'root_path': 'films.item'
+    },
+    'screenings' : {
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
+        'json': 'screenings.json',
+        'root_path': 'screenings.screening'
     }
+}
 
+def fetch_base(subfest):
     for task in tasks:
         root_path = tasks[task]['root_path'].split('.')
-        userUrl = tasks[task]['url']
+        userUrl = tasks[task]['url'].format(subfest=subfest)
         json_fn = os.path.join(datadir, tasks[task]['json'])
         print ('Fetch ' + userUrl + ' to ' + json_fn)
 
@@ -98,6 +116,10 @@ def fetch_base():
 
 def parse_venues(dict_data, task):
     print('Parse ' + task)
+    if not isinstance(dict_data, list):
+        dict_data = [dict_data]
+
+    # return
     queries = [
         {
             'mappings': {
@@ -143,13 +165,20 @@ def parse_venues(dict_data, task):
 
 def parse_publications(dict_data, task):
     print('Parse ' + task)
+    # print('dd', dict_data)
+    if not isinstance(dict_data, list):
+        dict_data = [dict_data]
+        # print('is list?', isinstance(dict_data, list))
+    # return
 
     SQL = """INSERT IGNORE INTO films (id, title_eng, title_original)
         VALUES (%(id)s, %(title_eng)s, %(title_original)s)
         ON DUPLICATE KEY UPDATE
         title_eng=%(title_eng)s, title_original=%(title_original)s
     ;"""
+
     for item in dict_data:
+        # print('item', item)
         map = { 'id': item['id'],
                 'title_eng': item['title_english'],
                 'title_original': item['title_original'] }
@@ -159,7 +188,7 @@ def parse_publications(dict_data, task):
 
         fetch_film(item['id'])
 
-    print('Films committed')
+    print('- Films committed')
 
     # Categories
     SQLs = [
@@ -186,7 +215,7 @@ def parse_publications(dict_data, task):
                 mycursor.execute(SQL, map)
                 # print(mycursor.statement)
         mydb.commit()
-    print('Categories committed')
+    print('- Categories committed')
 
     # Programs
     SQLs = [
@@ -214,11 +243,14 @@ def parse_publications(dict_data, task):
                 mycursor.execute(SQL, map)
                 # print(mycursor.statement)
         mydb.commit()
-    print('Programs committed')
+    print('- Programs committed')
 
 
 def parse_screenings(dict_data, task):
     print('Parse ' + task)
+    if not isinstance(dict_data, list):
+        dict_data = [dict_data]
+    # return
 
     SQL = """INSERT IGNORE INTO screenings (
             id, code, film_id, cinema_hall_id, venue_id,
@@ -250,9 +282,9 @@ def parse_screenings(dict_data, task):
                 'qa_duration_minutes': item['qa']['duration'],
                 'type_of_screening': item['type_of_screening'], 'ticketing_url': item['ticketing_url'] }
         mycursor.execute(SQL, map)
-        print(i, mycursor.statement)
+        # print(i, mycursor.statement)
         mydb.commit()
-    print('Screenings committed')
+    print('- Screenings committed')
 
     # Persons
     SQLs = [
@@ -341,7 +373,7 @@ def parse_screenings(dict_data, task):
 
         mydb.commit()
 
-    print('Persons committed')
+    print('- Persons committed')
 
 
 def fetch_film(film_id):
@@ -353,10 +385,10 @@ def fetch_film(film_id):
     # print(myresult['last_update_sec'])
 
     if myresult['last_update_sec'] < 15 * 60:
-        print('{title_original} is fresh ({last_update_sec} sec old) in our records'.format(**myresult))
+        # print('{title_original} is fresh ({last_update_sec} sec old) in our records'.format(**myresult))
         return myresult
 
-    print('Fetching {title_eng} [{id}]'.format(**myresult))
+    # print('Fetching {title_eng} [{id}]'.format(**myresult))
     root_path = 'film'.split('.')
     userUrl = 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/{film_id}.xml'.format(film_id=film_id)
     # json_fn = film['json']
@@ -416,8 +448,10 @@ def fetch_film(film_id):
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
 
-    print('{title_original} is updated ({last_update_sec} sec old) in our records'.format(**myresult))
+    # print('{title_original} is updated ({last_update_sec} sec old) in our records'.format(**myresult))
     return myresult
 
 
-fetch_base()
+for subfest in subfests:
+    # print('subfest:', subfest)
+    fetch_base(subfest)
