@@ -1,0 +1,39 @@
+label:
+  global:
+    weekdays:
+      monday: Monday
+      tuesday: Tuesday
+      wednesday: Wednesday
+      thursday: Thursday
+      friday: Friday
+      saturday: Saturday
+      sunday: Sunday
+  film:
+    relatedPerson:
+      director:
+        one: director
+        multiple: directors
+      producer:
+        one: producer
+        multiple: produtsers
+      cast:
+        one: casr
+        multiple: cast
+      crew:
+        one: crew
+        multiple: crew
+      coProducer:
+        one: co-producer
+        multiple: co-producers
+      writer:
+        one: writer
+        multiple: writers
+      festivalCoordinator:
+        one: festival coordinator
+        multiple: festival coordinators
+      delegate:
+        one: delegate
+        multiple: delegates
+      presenter:
+        one: presenter
+        multiple: presenters

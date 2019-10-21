@@ -1,0 +1,39 @@
+label:
+  global:
+    weekdays:
+      monday: esmaspäev
+      tuesday: teisipäev
+      wednesday: kolmapäev
+      thursday: neljapäev
+      friday: reede
+      saturday: laupäev
+      sunday: pühapäev
+  film:
+    relatedPerson:
+      director:
+        one: režissöör
+        multiple: režissöörid
+      producer:
+        one: produtsent
+        multiple: produtsendid
+      cast:
+        one: osatäitja
+        multiple: osatäitjad
+      crew:
+        one: meeskond
+        multiple: meeskond
+      coProducer:
+        one: kaasprodutsent
+        multiple: kaasprodutsendid
+      writer:
+        one: stsenarist
+        multiple: stsenaristid
+      festivalCoordinator:
+        one: festivali koordinaator
+        multiple: festivali koordinaatorid
+      delegate:
+        one: delegatsioon
+        multiple: delegatsioon
+      presenter:
+        one: esitleja
+        multiple: esitlejad

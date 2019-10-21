@@ -1,0 +1,39 @@
+label:
+  global:
+    weekdays:
+      monday: понедельник
+      tuesday: вторник
+      wednesday: среда
+      thursday: четверг
+      friday: пятница
+      saturday: суббота
+      sunday: воскресенье
+  film:
+    relatedPerson:
+      director:
+        one: директор
+        multiple: директори
+      producer:
+        one: продюсер
+        multiple: продюсери
+      cast:
+        one: исполнители
+        multiple: исполнители
+      crew:
+        one: команда
+        multiple: команда
+      coProducer:
+        one: сопродюсер
+        multiple: сопродюсери
+      writer:
+        one: сценарист
+        multiple: сценаристы
+      festivalCoordinator:
+        one: координатор фестиваля
+        multiple: координатори фестиваля
+      delegate:
+        one: делегат
+        multiple: делегация
+      presenter:
+        one: ведущий программы
+        multiple: ведущиe программы
