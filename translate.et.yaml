@@ -1,20 +1,34 @@
 label:
   global:
     weekday:
-      monday: esmaspäev
-      tuesday: teisipäev
-      wednesday: kolmapäev
-      thursday: neljapäev
-      friday: reede
-      saturday: laupäev
-      sunday: pühapäev
-      1: esmaspäev
-      2: teisipäev
-      3: kolmapäev
-      4: neljapäev
-      5: reede
-      6: laupäev
-      7: pühapäev
+      monday:
+        one: esmaspäev
+      tuesday:
+        one: teisipäev
+      wednesday:
+        one: kolmapäev
+      thursday:
+        one: neljapäev
+      friday:
+        one: reede
+      saturday:
+        one: laupäev
+      sunday:
+        one: pühapäev
+      1:
+        one: esmaspäev
+      2:
+        one: teisipäev
+      3:
+        one: kolmapäev
+      4:
+        one: neljapäev
+      5:
+        one: reede
+      6:
+        one: laupäev
+      7:
+        one: pühapäev
   film:
     relatedPerson:
       director:

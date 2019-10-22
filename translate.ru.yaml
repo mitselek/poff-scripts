@@ -1,20 +1,34 @@
 label:
   global:
     weekday:
-      monday: понедельник
-      tuesday: вторник
-      wednesday: среда
-      thursday: четверг
-      friday: пятница
-      saturday: суббота
-      sunday: воскресенье
-      1: понедельник
-      2: вторник
-      3: среда
-      4: четверг
-      5: пятница
-      6: суббота
-      7: воскресенье
+      monday:
+        one: понедельник
+      tuesday:
+        one: вторник
+      wednesday:
+        one: среда
+      thursday:
+        one: четверг
+      friday:
+        one: пятница
+      saturday:
+        one: суббота
+      sunday:
+        one: воскресенье
+      1:
+        one: понедельник
+      2:
+        one: вторник
+      3:
+        one: среда
+      4:
+        one: четверг
+      5:
+        one: пятница
+      6:
+        one: суббота
+      7:
+        one: воскресенье
   film:
     relatedPerson:
       director:
