@@ -385,13 +385,12 @@ def fetch_film(film_id):
     # print(myresult['last_update_sec'])
 
     if myresult['last_update_sec'] < 15 * 60:
-        # print('{title_original} is fresh ({last_update_sec} sec old) in our records'.format(**myresult))
         return myresult
 
-    # print('Fetching {title_eng} [{id}]'.format(**myresult))
     root_path = 'film'.split('.')
     userUrl = 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/{film_id}.xml'.format(film_id=film_id)
-    # json_fn = film['json']
+    myresult['userUrl'] = userUrl
+    print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
 
     with urlopen_with_retry(userUrl) as url:
         data = url.read()
@@ -444,6 +443,20 @@ def fetch_film(film_id):
 
     film_cursor.execute(SQL, map)
     mydb.commit()
+
+
+    # Countries
+    SQL = 'INSERT IGNORE INTO film_countries (film_id, country_code) VALUES (%(id)s, %(ISOCountry)s);'
+    ISOCountries = dd['film_info']['countries']['country']
+    if not isinstance(ISOCountries, list):
+        ISOCountries = [ISOCountries]
+    for ISOCountry in ISOCountries:
+        map = { 'id':dd['ids']['system_id'].get('#text'),
+                'ISOCountry':ISOCountry['code'] }
+        film_cursor.execute(SQL, map)
+
+    mydb.commit()
+
 
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
