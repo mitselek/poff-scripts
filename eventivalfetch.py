@@ -55,6 +55,8 @@ db = {
 }
 import mysql.connector
 
+# print(db)
+
 mydb = mysql.connector.connect(
   host = db['host'],
   user = db['user'],
@@ -66,7 +68,7 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    1839: 'Shorts',
+    # 1839: 'Shorts',
     10: 'PÖFF',
     9: 'Just Film',
 }
@@ -253,17 +255,17 @@ def parse_screenings(dict_data, task):
     # return
 
     SQL = """INSERT IGNORE INTO screenings (
-            id, code, film_id, cinema_hall_id, venue_id,
+            id, screening_code, film_id, cinema_hall_id, venue_id,
             start_date, start_time,
             screening_duration_minutes, presentation_duration_minutes, qa_duration_minutes,
             type_of_screening, ticketing_url)
         VALUES (
-            %(id)s, %(code)s, %(film_id)s, %(cinema_hall_id)s, %(venue_id)s,
+            %(id)s, %(screening_code)s, %(film_id)s, %(cinema_hall_id)s, %(venue_id)s,
             %(start_date)s, %(start_time)s,
             %(screening_duration_minutes)s, %(presentation_duration_minutes)s, %(qa_duration_minutes)s,
             %(type_of_screening)s, %(ticketing_url)s)
         ON DUPLICATE KEY UPDATE
-            code=%(code)s, film_id=%(film_id)s, cinema_hall_id=%(cinema_hall_id)s, venue_id=%(venue_id)s,
+            screening_code=%(screening_code)s, film_id=%(film_id)s, cinema_hall_id=%(cinema_hall_id)s, venue_id=%(venue_id)s,
             start_date=%(start_date)s, start_time=%(start_time)s,
             screening_duration_minutes=%(screening_duration_minutes)s,
             presentation_duration_minutes=%(presentation_duration_minutes)s,
@@ -274,7 +276,7 @@ def parse_screenings(dict_data, task):
     for item in dict_data:
         i+=1
         # continue
-        map = { 'id': item['id'], 'code': item['code'], 'film_id': item['film']['id'],
+        map = { 'id': item['id'], 'screening_code': item['code'], 'film_id': item['film']['id'],
                 'cinema_hall_id': item['cinema_hall_id'], 'venue_id': item['venue_id'],
                 'start_date': item['start'][:10], 'start_time': item['start'][11:],
                 'screening_duration_minutes': item['duration_screening_only_minutes'],
@@ -384,7 +386,7 @@ def fetch_film(film_id):
     # print(myresult)
     # print(myresult['last_update_sec'])
 
-    if myresult['last_update_sec'] < 15 * 60:
+    if myresult['last_update_sec'] < 1 * 60:
         return myresult
 
     root_path = 'film'.split('.')
@@ -398,48 +400,101 @@ def fetch_film(film_id):
     dd = xmltodict.parse(XML_data)
     for elem in root_path:
         dd = dd[elem]
-    # with open(json_fn, 'w') as json_file:
-    #     json.dump(dd, json_file, indent=4)
-    # print ('Done with ' + json_fn)
+    json_fn = os.path.join(datadir, 'films', '{id}.json'.format(id=myresult['id']))
+    with open(json_fn, 'w') as json_file:
+        json.dump(dd, json_file, indent=4)
+    print ('Done with ' + json_fn)
 
     SQL = """INSERT IGNORE INTO films (id, updated,
-            title_est, title_original,
+            title_est, title_eng, title_rus, title_original,
             runtime, year, premiere_type, trailer_url,
             directors_bio_est, directors_bio_eng, directors_bio_rus,
             synopsis_est, synopsis_eng, synopsis_rus,
+            directors,
+            producers,
+            writers,
+            cast,
+            DoP,
+            editors,
+            music,
+            production,
+            distributors,
+            festivals_est, festivals_eng, festivals_rus,
             directors_filmography_est, directors_filmography_eng, directors_filmography_rus)
         VALUES (%(id)s, now(),
-            %(title_est)s, %(title_original)s,
+            %(title_est)s, %(title_eng)s, %(title_rus)s, %(title_original)s,
             %(runtime)s, %(year)s, %(premiere_type)s, %(trailer_url)s,
             %(directors_bio_est)s, %(directors_bio_eng)s, %(directors_bio_rus)s,
             %(synopsis_est)s, %(synopsis_eng)s, %(synopsis_rus)s,
+            %(directors)s,
+            %(producers)s,
+            %(writers)s,
+            %(cast)s,
+            %(DoP)s,
+            %(editors)s,
+            %(music)s,
+            %(production)s,
+            %(distributors)s,
+            %(festivals_est)s, %(festivals_eng)s, %(festivals_rus)s,
             %(directors_filmography_est)s, %(directors_filmography_eng)s, %(directors_filmography_rus)s)
         ON DUPLICATE KEY UPDATE
-            updated=now(),
-            title_est=%(title_est)s, title_original=%(title_original)s,
-            runtime=%(runtime)s, year=%(year)s, premiere_type=%(premiere_type)s, trailer_url=%(trailer_url)s,
-            directors_bio_est=%(directors_bio_est)s, directors_bio_eng=%(directors_bio_eng)s, directors_bio_rus=%(directors_bio_rus)s,
-            synopsis_est=%(synopsis_est)s, synopsis_eng=%(synopsis_eng)s, synopsis_rus=%(synopsis_rus)s,
-            directors_filmography_est=%(directors_filmography_est)s, directors_filmography_eng=%(directors_filmography_eng)s, directors_filmography_rus=%(directors_filmography_rus)s
+            updated = now(),
+            title_est = %(title_est)s, title_eng = %(title_eng)s, title_rus = %(title_rus)s, title_original = %(title_original)s,
+            runtime = %(runtime)s, year = %(year)s, premiere_type = %(premiere_type)s, trailer_url = %(trailer_url)s,
+            directors_bio_est = %(directors_bio_est)s, directors_bio_eng = %(directors_bio_eng)s, directors_bio_rus = %(directors_bio_rus)s,
+            synopsis_est = %(synopsis_est)s, synopsis_eng = %(synopsis_eng)s, synopsis_rus = %(synopsis_rus)s,
+            directors = %(directors)s,
+            producers = %(producers)s,
+            writers = %(writers)s,
+            cast = %(cast)s,
+            DoP = %(DoP)s,
+            editors = %(editors)s,
+            music = %(music)s,
+            production = %(production)s,
+            distributors = %(distributors)s,
+            festivals_est = %(festivals_est)s, festivals_eng = %(festivals_eng)s, festivals_rus = %(festivals_rus)s,
+            directors_filmography_est = %(directors_filmography_est)s, directors_filmography_eng = %(directors_filmography_eng)s, directors_filmography_rus = %(directors_filmography_rus)s
         ;"""
 
-    map = {'id':dd['ids']['system_id'].get('#text'),
-        'title_est':BeautifulSoup(dd['titles']['title_local'].get('#text') or '', features="html.parser").get_text().strip(),
-        'title_original':BeautifulSoup(dd['titles']['title_original'].get('#text') or '', features="html.parser").get_text().strip(),
-        'runtime':dd['film_info']['runtime']['seconds'],
-        'year':dd['film_info']['completion_date']['year'] or '',
-        'premiere_type':dd['film_info']['premiere_type'].get('#text') or '',
-        'trailer_url':dd['film_info']['online_trailer_url'].get('#text') or '',
-        'directors_bio_est':BeautifulSoup(dd['publications'].get('et',{}).get('directors_bio') or '', features="html.parser").get_text().strip(),
-        'directors_bio_eng':BeautifulSoup(dd['publications'].get('en',{}).get('directors_bio') or '', features="html.parser").get_text().strip(),
-        'directors_bio_rus':BeautifulSoup(dd['publications'].get('ru',{}).get('directors_bio') or '', features="html.parser").get_text().strip(),
-        'synopsis_est':BeautifulSoup(dd['publications'].get('et',{}).get('synopsis_long') or '', features="html.parser").get_text().strip(),
-        'synopsis_eng':BeautifulSoup(dd['publications'].get('en',{}).get('synopsis_long') or '', features="html.parser").get_text().strip(),
-        'synopsis_rus':BeautifulSoup(dd['publications'].get('ru',{}).get('synopsis_long') or '', features="html.parser").get_text().strip(),
-        'directors_filmography_est':BeautifulSoup(dd['publications'].get('et',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
-        'directors_filmography_eng':BeautifulSoup(dd['publications'].get('en',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
-        'directors_filmography_rus':BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
+    def getCrew(crew_a, type):
+        for crew in crew_a:
+            if crew['type']['name'] == type:
+                return BeautifulSoup(crew.get('text') or '').get_text().strip()
+
+
+    map = {'id':         dd['ids']['system_id'].get('#text'),
+        'runtime':       dd['film_info']['runtime']['seconds'],
+        'year':          dd['film_info']['completion_date']['year']         or '',
+        'premiere_type': dd['film_info']['premiere_type'].get('#text')      or '',
+        'trailer_url':   dd['film_info']['online_trailer_url'].get('#text') or '',
+        'directors':                   BeautifulSoup(dd['publications'].get('en',{}).get('directors')             or '', features="html.parser").get_text().strip(),
+        'producers':                   BeautifulSoup(dd['publications'].get('en',{}).get('producers')             or '', features="html.parser").get_text().strip(),
+        'writers':                     BeautifulSoup(dd['publications'].get('en',{}).get('writers')               or '', features="html.parser").get_text().strip(),
+        'cast':                        BeautifulSoup(dd['publications'].get('en',{}).get('cast')                  or '', features="html.parser").get_text().strip(),
+
+        'DoP':                         getCrew(dd['publications']['en']['crew']['contact'], 'Op/DoP'),
+        'editors':                     getCrew(dd['publications']['en']['crew']['contact'], 'Mont/Ed'),
+        'music':                       getCrew(dd['publications']['en']['crew']['contact'], 'Muusika/Music'),
+        'production':                  getCrew(dd['publications']['en']['crew']['contact'], 'Tootja/Production'),
+        'distributors':                getCrew(dd['publications']['en']['crew']['contact'], 'Levitaja/Distributor'),
+
+        'title_original':              BeautifulSoup(dd['titles']['title_original'].get('#text')                  or '', features="html.parser").get_text().strip(),
+        'title_est':                   BeautifulSoup(dd['titles']['title_local'].get('#text')                     or '', features="html.parser").get_text().strip(),
+        'title_eng':                   BeautifulSoup(dd['titles']['title_english'].get('#text')                   or '', features="html.parser").get_text().strip(),
+        'synopsis_est':                BeautifulSoup(dd['publications'].get('et',{}).get('synopsis_long')         or '', features="html.parser").get_text().strip(),
+        'synopsis_eng':                BeautifulSoup(dd['publications'].get('en',{}).get('synopsis_long')         or '', features="html.parser").get_text().strip(),
+        'festivals_est':               BeautifulSoup(dd['publications'].get('et',{}).get('synopsis_short')        or '', features="html.parser").get_text().strip(),
+        'festivals_eng':               BeautifulSoup(dd['publications'].get('en',{}).get('synopsis_short')        or '', features="html.parser").get_text().strip(),
+        'directors_bio_est':           BeautifulSoup(dd['publications'].get('et',{}).get('directors_bio')         or '', features="html.parser").get_text().strip(),
+        'directors_bio_eng':           BeautifulSoup(dd['publications'].get('en',{}).get('directors_bio')         or '', features="html.parser").get_text().strip(),
+        'directors_filmography_est':   BeautifulSoup(dd['publications'].get('en',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
+        'directors_filmography_eng':   BeautifulSoup(dd['publications'].get('en',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
     }
+    map['title_rus'] =                 BeautifulSoup(dd['titles']['title_custom'].get('#text')                    or map['title_eng'], features="html.parser").get_text().strip()
+    map['synopsis_rus'] =              BeautifulSoup(dd['publications'].get('ru',{}).get('synopsis_long')         or map['synopsis_eng'], features="html.parser").get_text().strip()
+    map['festivals_rus'] =             BeautifulSoup(dd['publications'].get('ru',{}).get('festivals')             or map['festivals_eng'], features="html.parser").get_text().strip()
+    map['directors_bio_rus'] =         BeautifulSoup(dd['publications'].get('ru',{}).get('directors_bio')         or map['directors_bio_eng'], features="html.parser").get_text().strip()
+    map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
 
     film_cursor.execute(SQL, map)
     mydb.commit()
@@ -455,6 +510,22 @@ def fetch_film(film_id):
                 'ISOCountry':ISOCountry['code'] }
         film_cursor.execute(SQL, map)
 
+
+    # Languages
+    SQL = 'INSERT IGNORE INTO film_languages (film_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
+    if 'language' in dd['film_info']['languages']:
+        ISOLanguages = dd['film_info']['languages']['language']
+    else:
+        ISOLanguages = []
+    if not isinstance(ISOLanguages, list):
+        ISOLanguages = [ISOLanguages]
+    for ISOLanguage in ISOLanguages:
+        map = { 'id':dd['ids']['system_id'].get('#text'),
+                'ISOLanguage':ISOLanguage['code'] }
+        film_cursor.execute(SQL, map)
+
+
+
     mydb.commit()
 
 
@@ -466,5 +537,5 @@ def fetch_film(film_id):
 
 
 for subfest in subfests:
-    # print('subfest:', subfest)
+    print('subfest:', subfest)
     fetch_base(subfest)
