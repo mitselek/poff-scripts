@@ -221,7 +221,7 @@ def parse_publications(dict_data, task):
 
     # Programs
     SQLs = [
-        """INSERT IGNORE INTO programs (id, Program_est)
+        """INSERT IGNORE INTO c_programs (id, Program_est)
         VALUES (%(id)s, %(Program_est)s)
         ON DUPLICATE KEY UPDATE
         Program_est=%(Program_est)s
