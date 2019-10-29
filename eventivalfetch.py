@@ -221,10 +221,10 @@ def parse_publications(dict_data, task):
 
     # Programs
     SQLs = [
-        """INSERT IGNORE INTO c_programs (id, Program_est)
-        VALUES (%(id)s, %(Program_est)s)
+        """INSERT IGNORE INTO c_program (id, est)
+        VALUES (%(id)s, %(est)s)
         ON DUPLICATE KEY UPDATE
-        Program_est=%(Program_est)s
+        est=%(est)s
         ;""",
         """INSERT IGNORE INTO film_programs (film_id, program_id)
         VALUES (%(film_id)s, %(id)s)
@@ -240,7 +240,7 @@ def parse_publications(dict_data, task):
         if not isinstance(programs, list):
             programs = [programs]
         for program in programs:
-            map = { 'id': program['id'], 'Program_est': program['name'], 'film_id': item['id'] }
+            map = { 'id': program['id'], 'est': program['name'], 'film_id': item['id'] }
             for SQL in SQLs:
                 mycursor.execute(SQL, map)
                 # print(mycursor.statement)
