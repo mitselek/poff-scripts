@@ -74,16 +74,16 @@ subfests = {
 }
 
 tasks = {
-    'venues' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
-        'json': 'venues.json',
-        'root_path': 'venues.venue'
-    },
-    'publications' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
-        'json': 'publications.json',
-        'root_path': 'films.item'
-    },
+    # 'venues' : {
+    #     'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
+    #     'json': 'venues.json',
+    #     'root_path': 'venues.venue'
+    # },
+    # 'publications' : {
+    #     'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
+    #     'json': 'publications.json',
+    #     'root_path': 'films.item'
+    # },
     'screenings' : {
         'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
         'json': 'screenings.json',
@@ -179,6 +179,7 @@ def parse_publications(dict_data, task):
         title_eng=%(title_eng)s, title_original=%(title_original)s
     ;"""
 
+    i = 0
     for item in dict_data:
         # print('item', item)
         map = { 'id': item['id'],
@@ -189,37 +190,40 @@ def parse_publications(dict_data, task):
         mydb.commit()
 
         fetch_film(item['id'])
+        i += 1
 
-    print('- Films committed')
+    print('- {i} films committed'.format(i=i))
 
-    # Categories
+
+    # filmFestival / eventival_categorization -> categories -> category 
     SQLs = [
-        """INSERT IGNORE INTO categories (id, Category_est)
-        VALUES (%(id)s, %(Category_est)s)
+        """INSERT IGNORE INTO c_poffFest (id, est)
+        VALUES (%(id)s, %(est)s)
         ON DUPLICATE KEY UPDATE
-        Category_est=%(Category_est)s
+        est=%(est)s
         ;""",
-        """INSERT IGNORE INTO film_categories (film_id, category_id)
+        """INSERT IGNORE INTO film_poffFest (film_id, poffFest_id)
         VALUES (%(film_id)s, %(id)s)
         ;"""
     ]
     for item in dict_data:
         try:
-            categories = item['eventival_categorization']['categories']['category']
+            festivals = item['eventival_categorization']['categories']['category']
         except Exception as e:
-            print('No categories, skipping ', item)
+            print('No festivals, skipping ', item)
             continue
-        if not isinstance(categories, list):
-            categories = [categories]
-        for category in categories:
-            map = { 'id': category['@id'], 'Category_est': category['#text'], 'film_id': item['id'] }
+        if not isinstance(festivals, list):
+            festivals = [festivals]
+        for festival in festivals:
+            map = { 'id': festival['@id'], 'est': festival['#text'], 'film_id': item['id'] }
             for SQL in SQLs:
                 mycursor.execute(SQL, map)
                 # print(mycursor.statement)
         mydb.commit()
-    print('- Categories committed')
+    print('- Festivals committed')
 
-    # Programs
+
+    # filmProgram / eventival_categorization -> sections -> section 
     SQLs = [
         """INSERT IGNORE INTO c_program (id, est)
         VALUES (%(id)s, %(est)s)
@@ -258,19 +262,18 @@ def parse_screenings(dict_data, task):
             id, screening_code, film_id, cinema_hall_id, venue_id,
             start_date, start_time,
             screening_duration_minutes, presentation_duration_minutes, qa_duration_minutes,
-            type_of_screening, ticketing_url)
+            ticketing_url)
         VALUES (
             %(id)s, %(screening_code)s, %(film_id)s, %(cinema_hall_id)s, %(venue_id)s,
             %(start_date)s, %(start_time)s,
             %(screening_duration_minutes)s, %(presentation_duration_minutes)s, %(qa_duration_minutes)s,
-            %(type_of_screening)s, %(ticketing_url)s)
+            %(ticketing_url)s)
         ON DUPLICATE KEY UPDATE
             screening_code=%(screening_code)s, film_id=%(film_id)s, cinema_hall_id=%(cinema_hall_id)s, venue_id=%(venue_id)s,
             start_date=%(start_date)s, start_time=%(start_time)s,
             screening_duration_minutes=%(screening_duration_minutes)s,
             presentation_duration_minutes=%(presentation_duration_minutes)s,
-            qa_duration_minutes=%(qa_duration_minutes)s,
-            type_of_screening=%(type_of_screening)s, ticketing_url=%(ticketing_url)s
+            qa_duration_minutes=%(qa_duration_minutes)s, ticketing_url=%(ticketing_url)s
     ;"""
     i = 0
     for item in dict_data:
@@ -281,12 +284,26 @@ def parse_screenings(dict_data, task):
                 'start_date': item['start'][:10], 'start_time': item['start'][11:],
                 'screening_duration_minutes': item['duration_screening_only_minutes'],
                 'presentation_duration_minutes': item['presentation']['duration'],
-                'qa_duration_minutes': item['qa']['duration'],
-                'type_of_screening': item['type_of_screening'], 'ticketing_url': item['ticketing_url'] }
+                'qa_duration_minutes': item['qa']['duration'], 'ticketing_url': item['ticketing_url'] }
         mycursor.execute(SQL, map)
         # print(i, mycursor.statement)
+
+        # screeningType / type_of_screening
+        screeningSQLs = [
+        "INSERT IGNORE INTO c_screeningType (code, est) VALUES (%(est)s, %(est)s);",
+        "UPDATE screenings SET type_of_screening = %(est)s WHERE id = %(id)s;"
+        ]
+        map = { 'id': item['id'], 'est': item['type_of_screening'] }
+        for screeningSQL in screeningSQLs:
+            # print('got presenter for presentation for screening', screeningSQL, map)
+            mycursor.execute(screeningSQL, map)
+            # print(mycursor.statement)
+
         mydb.commit()
     print('- Screenings committed')
+
+
+
 
     # Persons
     SQLs = [
@@ -459,7 +476,7 @@ def fetch_film(film_id):
     def getCrew(crew_a, type):
         for crew in crew_a:
             if crew['type']['name'] == type:
-                return BeautifulSoup(crew.get('text') or '').get_text().strip()
+                return BeautifulSoup(crew.get('text') or '', features="html.parser").get_text().strip()
 
 
     map = {'id':         dd['ids']['system_id'].get('#text'),
@@ -497,7 +514,6 @@ def fetch_film(film_id):
     map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
 
     film_cursor.execute(SQL, map)
-    mydb.commit()
 
 
     # Countries
@@ -524,6 +540,42 @@ def fetch_film(film_id):
                 'ISOLanguage':ISOLanguage['code'] }
         film_cursor.execute(SQL, map)
 
+
+    # filmType / film_info -> length_type
+    SQLs = [
+        """INSERT IGNORE INTO c_type (id, est)
+        VALUES (%(id)s, %(est)s)
+        ON DUPLICATE KEY UPDATE
+        est=%(est)s
+        ;""",
+        """INSERT IGNORE INTO film_types (film_id, type_id)
+        VALUES (%(film_id)s, %(id)s)
+        ;"""
+    ]
+
+    # filmGenre / film_info -> types -> type
+    SQLs = [
+        """INSERT IGNORE INTO c_genre (id, est)
+        VALUES (%(id)s, %(est)s)
+        ON DUPLICATE KEY UPDATE
+        est=%(est)s
+        ;""",
+        """INSERT IGNORE INTO film_genres (film_id, genre_id)
+        VALUES (%(film_id)s, %(id)s)
+        ;"""
+    ]
+
+    # filmKeyword / film_info -> texts -> directors_statement
+    SQLs = [
+        """INSERT IGNORE INTO c_keyword (id, est)
+        VALUES (%(id)s, %(est)s)
+        ON DUPLICATE KEY UPDATE
+        est=%(est)s
+        ;""",
+        """INSERT IGNORE INTO film_keywords (film_id, keyword_id)
+        VALUES (%(film_id)s, %(id)s)
+        ;"""
+    ]
 
 
     mydb.commit()
