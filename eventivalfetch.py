@@ -68,7 +68,7 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    # 1839: 'Shorts',
+    1839: 'Shorts',
     10: 'PÖFF',
     9: 'Just Film',
 }
@@ -114,8 +114,11 @@ def fetch_base(subfest):
 
         dict_data = clean_empty(xmltodict.parse(XML_data))
         for elem in root_path:
-            dict_data = dict_data[elem]
-        # print('Got {len} bytes worth of JSON'.format(len=len(json.dumps(dict_data))))
+            dict_data = dict_data.get(elem,{})
+
+        if dict_data == {}:
+            print('#### Got just {len} bytes worth of JSON'.format(len=len(json.dumps(dict_data))))
+            return
 
         with open(json_fn, 'w') as json_file:
             json.dump(dict_data, json_file, indent=4)
