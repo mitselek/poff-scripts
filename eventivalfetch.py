@@ -74,16 +74,16 @@ subfests = {
 }
 
 tasks = {
-    # 'venues' : {
-    #     'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
-    #     'json': 'venues.json',
-    #     'root_path': 'venues.venue'
-    # },
-    # 'publications' : {
-    #     'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
-    #     'json': 'publications.json',
-    #     'root_path': 'films.item'
-    # },
+    'venues' : {
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
+        'json': 'venues.json',
+        'root_path': 'venues.venue'
+    },
+    'publications' : {
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
+        'json': 'publications.json',
+        'root_path': 'films.item'
+    },
     'screenings' : {
         'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
         'json': 'screenings.json',
