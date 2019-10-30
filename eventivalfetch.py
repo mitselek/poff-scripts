@@ -91,6 +91,14 @@ tasks = {
     }
 }
 
+def clean_empty(d):
+    if not isinstance(d, (dict, list)):
+        return d
+    if isinstance(d, list):
+        return [v for v in (clean_empty(v) for v in d) if v]
+    return {k: v for k, v in ((k, clean_empty(v)) for k, v in d.items()) if v}
+
+
 def fetch_base(subfest):
     for task in tasks:
         root_path = tasks[task]['root_path'].split('.')
@@ -104,7 +112,7 @@ def fetch_base(subfest):
         XML_data = data.decode()
         # print('Got {len} bytes worth of XML_data'.format(len=len(XML_data)))
 
-        dict_data = xmltodict.parse(XML_data)
+        dict_data = clean_empty(xmltodict.parse(XML_data))
         for elem in root_path:
             dict_data = dict_data[elem]
         # print('Got {len} bytes worth of JSON'.format(len=len(json.dumps(dict_data))))
@@ -258,33 +266,38 @@ def parse_screenings(dict_data, task):
         dict_data = [dict_data]
     # return
 
-    SQL = """INSERT IGNORE INTO screenings (
-            id, screening_code, film_id, cinema_hall_id, venue_id,
-            start_date, start_time,
-            screening_duration_minutes, presentation_duration_minutes, qa_duration_minutes,
-            ticketing_url)
-        VALUES (
-            %(id)s, %(screening_code)s, %(film_id)s, %(cinema_hall_id)s, %(venue_id)s,
-            %(start_date)s, %(start_time)s,
-            %(screening_duration_minutes)s, %(presentation_duration_minutes)s, %(qa_duration_minutes)s,
-            %(ticketing_url)s)
-        ON DUPLICATE KEY UPDATE
-            screening_code=%(screening_code)s, film_id=%(film_id)s, cinema_hall_id=%(cinema_hall_id)s, venue_id=%(venue_id)s,
-            start_date=%(start_date)s, start_time=%(start_time)s,
-            screening_duration_minutes=%(screening_duration_minutes)s,
-            presentation_duration_minutes=%(presentation_duration_minutes)s,
-            qa_duration_minutes=%(qa_duration_minutes)s, ticketing_url=%(ticketing_url)s
+    SQL = """INSERT IGNORE INTO screenings ( id
+        , screening_code, film_id, cinema_hall_id, venue_id
+        , start_date, start_time, ticketing_url
+        , screening_duration_minutes, presentation_duration_minutes, qa_duration_minutes
+        , screening_info_est, screening_info_eng, screening_info_rus)
+        VALUES ( %(id)s
+        , %(screening_code)s, %(film_id)s, %(cinema_hall_id)s, %(venue_id)s
+        , %(start_date)s, %(start_time)s, %(ticketing_url)s
+        , %(screening_duration_minutes)s, %(presentation_duration_minutes)s, %(qa_duration_minutes)s
+        , %(screening_info_est)s, %(screening_info_eng)s, %(screening_info_rus)s)
+        ON DUPLICATE KEY UPDATE screening_code=%(screening_code)s
+        , film_id=%(film_id)s, cinema_hall_id=%(cinema_hall_id)s, venue_id=%(venue_id)s
+        , start_date=%(start_date)s, start_time=%(start_time)s, ticketing_url=%(ticketing_url)s
+        , screening_duration_minutes=%(screening_duration_minutes)s
+        , presentation_duration_minutes=%(presentation_duration_minutes)s
+        , qa_duration_minutes=%(qa_duration_minutes)s
+        , screening_info_est=%(screening_info_est)s, screening_info_eng=%(screening_info_eng)s, screening_info_rus=%(screening_info_rus)s
     ;"""
     i = 0
     for item in dict_data:
         i+=1
         # continue
-        map = { 'id': item['id'], 'screening_code': item['code'], 'film_id': item['film']['id'],
-                'cinema_hall_id': item['cinema_hall_id'], 'venue_id': item['venue_id'],
-                'start_date': item['start'][:10], 'start_time': item['start'][11:],
-                'screening_duration_minutes': item['duration_screening_only_minutes'],
-                'presentation_duration_minutes': item['presentation']['duration'],
-                'qa_duration_minutes': item['qa']['duration'], 'ticketing_url': item['ticketing_url'] }
+        map = { 'id': item['id']
+              , 'screening_code': item.get('code'), 'film_id': item['film']['id'], 'cinema_hall_id': item.get('cinema_hall_id'), 'venue_id': item['venue_id']
+              , 'start_date': item['start'][:10], 'start_time': item['start'][11:], 'ticketing_url': item.get('ticketing_url')
+              , 'screening_duration_minutes': item['duration_screening_only_minutes']
+              , 'presentation_duration_minutes': item.get('presentation',{}).get('duration')
+              , 'qa_duration_minutes': item['qa'].get('duration')
+              , 'screening_info_est': item.get('additional_info',{}).get('et')
+              , 'screening_info_eng': item.get('additional_info',{}).get('en')
+              , 'screening_info_rus': item.get('additional_info',{}).get('ru')
+              }
         mycursor.execute(SQL, map)
         # print(i, mycursor.statement)
 
@@ -293,11 +306,33 @@ def parse_screenings(dict_data, task):
         "INSERT IGNORE INTO c_screeningType (code, est) VALUES (%(est)s, %(est)s);",
         "UPDATE screenings SET type_of_screening = %(est)s WHERE id = %(id)s;"
         ]
-        map = { 'id': item['id'], 'est': item['type_of_screening'] }
+        map = { 'id': item['id'], 'est': item.get('type_of_screening') }
         for screeningSQL in screeningSQLs:
             # print('got presenter for presentation for screening', screeningSQL, map)
             mycursor.execute(screeningSQL, map)
             # print(mycursor.statement)
+
+        # Film Languages
+        flSQL = 'INSERT IGNORE INTO screening_film_languages (screening_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
+        ISOLanguages = item.get('film',{}).get('languages',{}).get('print',{}).get('language',[])
+        if not isinstance(ISOLanguages, list):
+            ISOLanguages = [ISOLanguages]
+        for ISOLanguage in ISOLanguages:
+            map = { 'id':item['id'],
+                    'ISOLanguage':ISOLanguage }
+            mycursor.execute(flSQL, map)
+
+        # Subtitle Languages
+        slSQL = 'INSERT IGNORE INTO screening_subtitle_languages (screening_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
+        ISOLanguages = item.get('film',{}).get('subtitle_languages',{}).get('print',{}).get('language',[])
+        if not isinstance(ISOLanguages, list):
+            ISOLanguages = [ISOLanguages]
+        for ISOLanguage in ISOLanguages:
+            map = { 'id':item['id'],
+                    'ISOLanguage':ISOLanguage }
+            mycursor.execute(slSQL, map)
+
+
 
         mydb.commit()
     print('- Screenings committed')
@@ -317,15 +352,13 @@ def parse_screenings(dict_data, task):
         ;"""
         ]
     for item in dict_data:
-        if item['presentation']['presenters']:
+        if item['presentation'].get('presenters'):
             (part, role) = ('presentation', 'presenter')
-            presenters = item['presentation']['presenters']['person']
+            presenters = item['presentation'].get('presenters',{}).get('person')
             if not isinstance(presenters, list):
                 presenters = [presenters]
             for presenter in presenters:
-                if presenter['relations'] is None:
-                    presenter['relations'] = {'relation':['']}
-                relations = presenter['relations']['relation']
+                relations = presenter.get('relations',{}).get('relation')
                 if not isinstance(relations, list):
                     relations = [relations]
                 for relation in relations:
@@ -335,15 +368,13 @@ def parse_screenings(dict_data, task):
                         # print('got presenter for presentation for screening', SQL, map)
                         mycursor.execute(SQL, map)
                         # print(mycursor.statement)
-        if item['presentation']['guests']:
+        if item['presentation'].get('guests'):
             (part, role) = ('presentation', 'guest')
-            guests = item['presentation']['guests']['person']
+            guests = item['presentation'].get('guests',{}).get('person')
             if not isinstance(guests, list):
                 guests = [guests]
             for guest in guests:
-                if guest['relations'] is None:
-                    guest['relations'] = {'relation':['']}
-                relations = guest['relations']['relation']
+                relations = guest.get('relations',{}).get('relation')
                 if not isinstance(relations, list):
                     relations = [relations]
                 for relation in relations:
@@ -353,15 +384,13 @@ def parse_screenings(dict_data, task):
                         # print('got guest for presentation for screening', SQL, map)
                         mycursor.execute(SQL, map)
                         # print(mycursor.statement)
-        if item['qa']['presenters']:
+        if item['qa'].get('presenters'):
             (part, role) = ('qa', 'presenter')
-            presenters = item['qa']['presenters']['person']
+            presenters = item['qa'].get('presenters',{}).get('person')
             if not isinstance(presenters, list):
                 presenters = [presenters]
             for presenter in presenters:
-                if presenter['relations'] is None:
-                    presenter['relations'] = {'relation':['']}
-                relations = presenter['relations']['relation']
+                relations = presenter.get('relations',{}).get('relation')
                 if not isinstance(relations, list):
                     relations = [relations]
                 for relation in relations:
@@ -371,15 +400,13 @@ def parse_screenings(dict_data, task):
                         # print('got presenter for qa for screening', SQL, map)
                         mycursor.execute(SQL, map)
                         # print(mycursor.statement)
-        if item['qa']['guests']:
+        if item['qa'].get('guests'):
             (part, role) = ('qa', 'guest')
-            guests = item['qa']['guests']['person']
+            guests = item['qa'].get('guests',{}).get('person')
             if not isinstance(guests, list):
                 guests = [guests]
             for guest in guests:
-                if guest['relations'] is None:
-                    guest['relations'] = {'relation':['']}
-                relations = guest['relations']['relation']
+                relations = guest.get('relations',{}).get('relation')
                 if not isinstance(relations, list):
                     relations = [relations]
                 for relation in relations:
