@@ -8,6 +8,8 @@ import xmltodict
 
 from bs4 import BeautifulSoup
 
+ANXIETY = 15 * 60; # time in seconds that will make a film anxious and willing to look for updates
+
 def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
     """
     Retry calling the decorated function using an exponential backoff.
@@ -68,7 +70,7 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    1839: 'Shorts',
+    # 1839: 'Shorts',
     10: 'PÖFF',
     9: 'Just Film',
 }
@@ -164,12 +166,12 @@ def parse_venues(dict_data, task):
                     value = item[elem]
                 # print('value:', value)
                 for elem in path:
-                    # print('2elem:', elem)
-                    if value and elem in value:
-                        value = value[elem]
+                    value = value.get(elem)
+                    # if value and elem in value:
                 # print('map:', mapping, '<-', mappings[mapping], ' = ', value)
                 map[mapping] = value
             if SQL:
+                # print(map)
                 mycursor.execute(SQL, map)
                 # print(mycursor.statement)
         # print('commit')
@@ -184,18 +186,20 @@ def parse_publications(dict_data, task):
         # print('is list?', isinstance(dict_data, list))
     # return
 
-    SQL = """INSERT IGNORE INTO films (id, title_eng, title_original)
-        VALUES (%(id)s, %(title_eng)s, %(title_original)s)
+    SQL = """INSERT IGNORE INTO films (id, title_eng, title_original, published)
+        VALUES (%(id)s, %(title_eng)s, %(title_original)s, subtime(now(),SEC_TO_TIME(%(anxiety)s)))
         ON DUPLICATE KEY UPDATE
         title_eng=%(title_eng)s, title_original=%(title_original)s
     ;"""
 
     i = 0
     for item in dict_data:
-        # print('item', item)
+        print('item', item['title_english'])
         map = { 'id': item['id'],
                 'title_eng': item['title_english'],
-                'title_original': item['title_original'] }
+                'title_original': item['title_original'],
+                'anxiety': ANXIETY
+              }
         mycursor.execute(SQL, map)
         # print(mycursor.statement)
         mydb.commit()
@@ -306,10 +310,10 @@ def parse_screenings(dict_data, task):
 
         # screeningType / type_of_screening
         screeningSQLs = [
-        "INSERT IGNORE INTO c_screeningType (code, est) VALUES (%(est)s, %(est)s);",
-        "UPDATE screenings SET type_of_screening = %(est)s WHERE id = %(id)s;"
+        # "INSERT IGNORE INTO c_screeningType (code, est) VALUES (%(est)s, %(est)s);",
+        "UPDATE screenings SET type_of_screening = %(type_of_screening)s WHERE id = %(id)s;"
         ]
-        map = { 'id': item['id'], 'est': item.get('type_of_screening') }
+        map = { 'id': item['id'], 'type_of_screening': item.get('type_of_screening', 'regular') }
         for screeningSQL in screeningSQLs:
             # print('got presenter for presentation for screening', screeningSQL, map)
             mycursor.execute(screeningSQL, map)
@@ -431,9 +435,12 @@ def fetch_film(film_id):
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
     # print(myresult)
-    # print(myresult['last_update_sec'])
+    print(myresult['last_update_sec'])
 
-    if myresult['last_update_sec'] < 1 * 60:
+    if not myresult:
+        myresult = {}
+    if myresult.get('last_update_sec',0) < 1 * 60:
+    # if myresult.get('last_update_sec',0) < 15 * 60:
         return myresult
 
     root_path = 'film'.split('.')
