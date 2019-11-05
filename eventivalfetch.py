@@ -162,13 +162,16 @@ def parse_venues(dict_data, task):
                 path = mappings[mapping].split('.')
                 elem = path.pop(0)
                 # print('elem:', elem)
-                if elem in item:
-                    value = item[elem]
+                # if elem in item:
+                    # value = item[elem]
+                value = item.get(elem,{})
                 # print('value:', value)
                 for elem in path:
-                    value = value.get(elem)
+                    value = value.get(elem,{})
                     # if value and elem in value:
                 # print('map:', mapping, '<-', mappings[mapping], ' = ', value)
+                if value == {}:
+                    value = None;
                 map[mapping] = value
             if SQL:
                 # print(map)
@@ -446,7 +449,7 @@ def fetch_film(film_id):
     root_path = 'film'.split('.')
     userUrl = 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/{film_id}.xml'.format(film_id=film_id)
     myresult['userUrl'] = userUrl
-    print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
+    # print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
 
     with urlopen_with_retry(userUrl) as url:
         data = url.read()
@@ -457,7 +460,7 @@ def fetch_film(film_id):
     json_fn = os.path.join(datadir, 'films', '{id}.json'.format(id=myresult['id']))
     with open(json_fn, 'w') as json_file:
         json.dump(dd, json_file, indent=4)
-    print ('Done with ' + json_fn)
+    # print ('Done with ' + json_fn)
 
     SQL = """INSERT IGNORE INTO films (id, updated,
             title_est, title_eng, title_rus, title_original,
