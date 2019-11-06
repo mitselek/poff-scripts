@@ -199,15 +199,15 @@ def parse_publications(dict_data, task):
     for item in dict_data:
         print('item', item['title_english'])
         map = { 'id': item['id'],
-                'title_eng': item['title_english'],
-                'title_original': item['title_original'],
+                'title_eng': item.get('title_english'),
+                'title_original': item.get('title_original'),
                 'anxiety': ANXIETY
               }
         mycursor.execute(SQL, map)
         # print(mycursor.statement)
-        mydb.commit()
 
         fetch_film(item['id'])
+        mydb.commit()
         i += 1
 
     print('- {i} films committed'.format(i=i))
@@ -433,6 +433,8 @@ def parse_screenings(dict_data, task):
 
 
 def fetch_film(film_id):
+    # if film_id != 518746:
+        # return
     select_film_SQL = 'SELECT films.*, now()-films.updated AS last_update_sec FROM films WHERE id = %(film_id)s;'
     film_cursor = mydb.cursor(dictionary=True)
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
@@ -442,7 +444,7 @@ def fetch_film(film_id):
 
     if not myresult:
         myresult = {}
-    if myresult.get('last_update_sec',0) < 1 * 60:
+    if myresult.get('last_update_sec',0) < ANXIETY:
     # if myresult.get('last_update_sec',0) < 15 * 60:
         return myresult
 
@@ -558,12 +560,12 @@ def fetch_film(film_id):
 
     # Countries
     SQL = 'INSERT IGNORE INTO film_countries (film_id, country_code) VALUES (%(id)s, %(ISOCountry)s);'
-    ISOCountries = dd['film_info']['countries']['country']
+    ISOCountries = dd['film_info']['countries'].get('country',{})
     if not isinstance(ISOCountries, list):
         ISOCountries = [ISOCountries]
     for ISOCountry in ISOCountries:
         map = { 'id':dd['ids']['system_id'].get('#text'),
-                'ISOCountry':ISOCountry['code'] }
+                'ISOCountry':ISOCountry.get('code') }
         film_cursor.execute(SQL, map)
 
 
@@ -607,16 +609,26 @@ def fetch_film(film_id):
 
     # filmKeyword / film_info -> texts -> directors_statement
     SQLs = [
-        """INSERT IGNORE INTO c_keyword (id, est)
-        VALUES (%(id)s, %(est)s)
-        ON DUPLICATE KEY UPDATE
-        est=%(est)s
+        """INSERT IGNORE INTO c_keyword (est)
+        VALUES (%(est)s)
         ;""",
         """INSERT IGNORE INTO film_keywords (film_id, keyword_id)
-        VALUES (%(film_id)s, %(id)s)
+        SELECT %(film_id)s, id FROM c_keyword WHERE est = %(est)s
         ;"""
     ]
-
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4).pprint
+    keywords = dd['film_info']['texts']['directors_statement'].get('#text','').strip(' ,').split(',')
+    # print(keywords)
+    keywords = [kw.strip() for kw in keywords]
+    map = { 'film_id':film_id }
+    for keyword in keywords:
+        if keyword == '':
+            continue
+        map['est'] = keyword
+        # pp(map)
+        for SQL in SQLs:
+            film_cursor.execute(SQL, map)
 
     mydb.commit()
 
