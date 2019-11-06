@@ -520,6 +520,18 @@ def fetch_film(film_id):
             if crew['type']['name'] == type:
                 return BeautifulSoup(crew.get('text') or '', features="html.parser").get_text().strip()
 
+    def mySoap(text):
+        if not text:
+            return ''
+        paragraphs = text.split('</p>')
+        paragraphs = [BeautifulSoup(p, features="html.parser").get_text().strip() for p in paragraphs]
+        paragraphs = filter(None, paragraphs)
+        text = "\n".join(paragraphs)
+        paragraphs = text.split("\n")
+        paragraphs = [p.strip() for p in paragraphs]
+        paragraphs = filter(None, paragraphs)
+        return "<p>" + "</p>\n<p>".join(paragraphs) + "</p>"
+
 
     map = {'id':         dd['ids']['system_id'].get('#text'),
         'runtime':       dd['film_info']['runtime']['seconds'],
@@ -540,8 +552,8 @@ def fetch_film(film_id):
         'title_original':              BeautifulSoup(dd['titles']['title_original'].get('#text')                  or '', features="html.parser").get_text().strip(),
         'title_est':                   BeautifulSoup(dd['titles']['title_local'].get('#text')                     or '', features="html.parser").get_text().strip(),
         'title_eng':                   BeautifulSoup(dd['titles']['title_english'].get('#text')                   or '', features="html.parser").get_text().strip(),
-        'synopsis_est':                BeautifulSoup(dd['publications'].get('et',{}).get('synopsis_long')         or '', features="html.parser").get_text().strip(),
-        'synopsis_eng':                BeautifulSoup(dd['publications'].get('en',{}).get('synopsis_long')         or '', features="html.parser").get_text().strip(),
+        'synopsis_est':                mySoap(dd['publications'].get('et',{}).get('synopsis_long','')),
+        'synopsis_eng':                mySoap(dd['publications'].get('en',{}).get('synopsis_long','')),
         'festivals_est':               BeautifulSoup(dd['publications'].get('et',{}).get('synopsis_short')        or '', features="html.parser").get_text().strip(),
         'festivals_eng':               BeautifulSoup(dd['publications'].get('en',{}).get('synopsis_short')        or '', features="html.parser").get_text().strip(),
         'directors_bio_est':           BeautifulSoup(dd['publications'].get('et',{}).get('directors_bio')         or '', features="html.parser").get_text().strip(),
@@ -550,7 +562,7 @@ def fetch_film(film_id):
         'directors_filmography_eng':   BeautifulSoup(dd['publications'].get('en',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
     }
     map['title_rus'] =                 BeautifulSoup(dd['titles']['title_custom'].get('#text')                    or map['title_eng'], features="html.parser").get_text().strip()
-    map['synopsis_rus'] =              BeautifulSoup(dd['publications'].get('ru',{}).get('synopsis_long')         or map['synopsis_eng'], features="html.parser").get_text().strip()
+    map['synopsis_rus'] =              mySoap(dd['publications'].get('ru',{}).get('synopsis_long',''))            or map['synopsis_eng']
     map['festivals_rus'] =             BeautifulSoup(dd['publications'].get('ru',{}).get('festivals')             or map['festivals_eng'], features="html.parser").get_text().strip()
     map['directors_bio_rus'] =         BeautifulSoup(dd['publications'].get('ru',{}).get('directors_bio')         or map['directors_bio_eng'], features="html.parser").get_text().strip()
     map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
