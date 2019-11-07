@@ -70,7 +70,7 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    # 1839: 'Shorts',
+    1839: 'Shorts',
     10: 'PÖFF',
     9: 'Just Film',
 }
@@ -197,7 +197,7 @@ def parse_publications(dict_data, task):
 
     i = 0
     for item in dict_data:
-        print('item', item['title_english'])
+        print('item', i, item['title_english'])
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
                 'title_original': item.get('title_original'),
@@ -523,11 +523,12 @@ def fetch_film(film_id):
     def mySoap(text):
         if not text:
             return ''
-        paragraphs = text.split('</p>')
+        text = text.replace('</p>', '||BR||').replace('<br>', '||BR||').replace('<br/>', '||BR||').replace('<br />', '||BR||')
+        paragraphs = text.split('||BR||')
         paragraphs = [BeautifulSoup(p, features="html.parser").get_text().strip() for p in paragraphs]
         paragraphs = filter(None, paragraphs)
-        text = "\n".join(paragraphs)
-        paragraphs = text.split("\n")
+        text = '\n'.join(paragraphs)
+        paragraphs = text.split('\n')
         paragraphs = [p.strip() for p in paragraphs]
         paragraphs = filter(None, paragraphs)
         return "<p>" + "</p>\n<p>".join(paragraphs) + "</p>"
@@ -543,11 +544,11 @@ def fetch_film(film_id):
         'writers':                     BeautifulSoup(dd['publications'].get('en',{}).get('writers')               or '', features="html.parser").get_text().strip(),
         'cast':                        BeautifulSoup(dd['publications'].get('en',{}).get('cast')                  or '', features="html.parser").get_text().strip(),
 
-        'DoP':                         getCrew(dd['publications']['en']['crew']['contact'], 'Op/DoP'),
-        'editors':                     getCrew(dd['publications']['en']['crew']['contact'], 'Mont/Ed'),
-        'music':                       getCrew(dd['publications']['en']['crew']['contact'], 'Muusika/Music'),
-        'production':                  getCrew(dd['publications']['en']['crew']['contact'], 'Tootja/Production'),
-        'distributors':                getCrew(dd['publications']['en']['crew']['contact'], 'Levitaja/Distributor'),
+        'DoP':                         getCrew(dd['publications'].get('en',{}).get('crew',{}).get('contact',{}), 'Op/DoP'),
+        'editors':                     getCrew(dd['publications'].get('en',{}).get('crew',{}).get('contact',{}), 'Mont/Ed'),
+        'music':                       getCrew(dd['publications'].get('en',{}).get('crew',{}).get('contact',{}), 'Muusika/Music'),
+        'production':                  getCrew(dd['publications'].get('en',{}).get('crew',{}).get('contact',{}), 'Tootja/Production'),
+        'distributors':                getCrew(dd['publications'].get('en',{}).get('crew',{}).get('contact',{}), 'Levitaja/Distributor'),
 
         'title_original':              BeautifulSoup(dd['titles']['title_original'].get('#text')                  or '', features="html.parser").get_text().strip(),
         'title_est':                   BeautifulSoup(dd['titles']['title_local'].get('#text')                     or '', features="html.parser").get_text().strip(),
