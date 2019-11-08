@@ -8,7 +8,7 @@ import xmltodict
 
 from bs4 import BeautifulSoup
 
-ANXIETY = 35 * 60; # time in seconds that will make a film anxious and willing to look for updates
+ANXIETY = 15 * 60; # time in seconds that will make a film anxious and willing to look for updates
 
 def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
     """
@@ -47,15 +47,6 @@ def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
 @retry(urllib.error.HTTPError, tries=5, delay=1, backoff=1.2)
 def urlopen_with_retry(userUrl):
     return urllib.request.urlopen(userUrl)
-
-# def findPaths(d, key):
-#     findings = {}
-#     for k, v in d.items():
-#         if isinstance(v, dict):
-#             findings.setdefault(k, findPaths(v, key))
-#         if k == key:
-#             findings.setdefault(k, v)
-#     return findings
 
 
 datadir = 'data'
@@ -106,12 +97,12 @@ tasks = {
     }
 }
 
-def clean_empty(d):
+def clean_empty(d, needle):
     if not isinstance(d, (dict, list)):
         return d
     if isinstance(d, list):
-        return [v for v in (clean_empty(v) for v in d) if v]
-    return {k: v for k, v in ((k, clean_empty(v)) for k, v in d.items()) if v}
+        return [v for v in (clean_empty(v, needle) for v in d) if v]
+    return {k: v for k, v in ((k, clean_empty(v, needle)) for k, v in d.items()) if v and k != needle}
 
 
 # def fetch_base(subfest):
@@ -129,9 +120,10 @@ def fetch_base():
         XML_data = data.decode()
         # print('Got {len} bytes worth of XML_data'.format(len=len(XML_data)))
 
-        dict_data = clean_empty(xmltodict.parse(XML_data))
+        dict_data = clean_empty(xmltodict.parse(XML_data), '')
         for elem in root_path:
             dict_data = dict_data.get(elem,{})
+        dict_data = clean_empty(dict_data, 'hash')
 
         if dict_data == {}:
             print('#### Got just {len} bytes worth of JSON'.format(len=len(json.dumps(dict_data))))
@@ -476,7 +468,7 @@ def fetch_film(film_id):
         dd = dd[elem]
     json_fn = os.path.join(datadir, 'films', '{id}.json'.format(id=myresult['id']))
     with open(json_fn, 'w') as json_file:
-        json.dump(dd, json_file, indent=4)
+        json.dump(clean_empty(dd, '@label'), json_file, indent=4)
     # print ('Done with ' + json_fn)
 
     SQL = """INSERT IGNORE INTO films (id, updated,
