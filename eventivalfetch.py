@@ -213,7 +213,7 @@ def parse_publications(dict_data, task):
 
     i = 0
     for item in dict_data:
-        print('item', i, item.get('title_english', 'WARNING, Film %(ID)s has no title_english.          *** *** *** *** ***'.format(ID=item['id'])))
+        print('item', i, item['id'], item.get('title_english', 'WARNING, Film %(ID)s has no title_english.          *** *** *** *** ***'.format(ID=item['id'])))
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
                 'title_original': item.get('title_original'),
@@ -456,7 +456,7 @@ def fetch_film(film_id):
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
     # print(myresult)
-    print(myresult['last_update_sec'])
+    # print(myresult['last_update_sec'])
 
     if not myresult:
         myresult = {}
