@@ -8,7 +8,7 @@ import xmltodict
 
 from bs4 import BeautifulSoup
 
-ANXIETY = 15 * 60; # time in seconds that will make a film anxious and willing to look for updates
+ANXIETY = 35 * 60; # time in seconds that will make a film anxious and willing to look for updates
 
 def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
     """
@@ -48,15 +48,14 @@ def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
 def urlopen_with_retry(userUrl):
     return urllib.request.urlopen(userUrl)
 
-# def findPaths(path, d, key):
+# def findPaths(d, key):
+#     findings = {}
 #     for k, v in d.items():
 #         if isinstance(v, dict):
+#             findings.setdefault(k, findPaths(v, key))
 #         if k == key:
-#             return key
-#
-#       findPaths(v)
-#     else:
-#       print("{0} : {1}".format(k, v))
+#             findings.setdefault(k, v)
+#     return findings
 
 
 datadir = 'data'
@@ -213,7 +212,7 @@ def parse_publications(dict_data, task):
 
     i = 0
     for item in dict_data:
-        print('item', i, item['id'], item.get('title_english', 'WARNING, Film %(ID)s has no title_english.          *** *** *** *** ***'.format(ID=item['id'])))
+        print('item', i, item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
                 'title_original': item.get('title_original'),
@@ -270,7 +269,7 @@ def parse_publications(dict_data, task):
         ]
     for item in dict_data:
         # try:
-        programs = item['eventival_categorization'].get('sections',{}).get('section')
+        programs = item['eventival_categorization'].get('sections',{}).get('section',[])
         # except Exception as e:
         #     print('No sections, skipping ', item)
         #     continue
