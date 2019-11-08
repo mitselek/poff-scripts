@@ -48,6 +48,17 @@ def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
 def urlopen_with_retry(userUrl):
     return urllib.request.urlopen(userUrl)
 
+# def findPaths(path, d, key):
+#     for k, v in d.items():
+#         if isinstance(v, dict):
+#         if k == key:
+#             return key
+#
+#       findPaths(v)
+#     else:
+#       print("{0} : {1}".format(k, v))
+
+
 datadir = 'data'
 db = {
     'host': os.getenv('FILMS_DB_HOST'),
@@ -69,11 +80,12 @@ mydb = mysql.connector.connect(
 mycursor = mydb.cursor()
 
 # Eventival subfestival codes
-subfests = {
-    1839: 'Shorts',
-    10: 'PÖFF',
-    9: 'Just Film',
-}
+# subfests = {
+#
+#     1839: 'Shorts',
+#     10: 'PÖFF',
+#     9: 'Just Film',
+# }
 
 tasks = {
     'venues' : {
@@ -82,12 +94,14 @@ tasks = {
         'root_path': 'venues.venue'
     },
     'publications' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/publications-locked.xml',
+        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
         'json': 'publications.json',
         'root_path': 'films.item'
     },
     'screenings' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/screenings.xml',
+        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
         'json': 'screenings.json',
         'root_path': 'screenings.screening'
     }
@@ -101,10 +115,12 @@ def clean_empty(d):
     return {k: v for k, v in ((k, clean_empty(v)) for k, v in d.items()) if v}
 
 
-def fetch_base(subfest):
+# def fetch_base(subfest):
+def fetch_base():
     for task in tasks:
         root_path = tasks[task]['root_path'].split('.')
-        userUrl = tasks[task]['url'].format(subfest=subfest)
+        # userUrl = tasks[task]['url'].format(subfest=subfest)
+        userUrl = tasks[task]['url']
         json_fn = os.path.join(datadir, tasks[task]['json'])
         print ('Fetch ' + userUrl + ' to ' + json_fn)
 
@@ -197,7 +213,7 @@ def parse_publications(dict_data, task):
 
     i = 0
     for item in dict_data:
-        print('item', i, item['title_english'])
+        print('item', i, item.get('title_english', 'WARNING, Film %(ID)s has no title_english.          *** *** *** *** ***'.format(ID=item['id'])))
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
                 'title_original': item.get('title_original'),
@@ -253,11 +269,11 @@ def parse_publications(dict_data, task):
         ;"""
         ]
     for item in dict_data:
-        try:
-            programs = item['eventival_categorization']['sections']['section']
-        except Exception as e:
-            print('No sections, skipping ', item)
-            continue
+        # try:
+        programs = item['eventival_categorization'].get('sections',{}).get('section')
+        # except Exception as e:
+        #     print('No sections, skipping ', item)
+        #     continue
 
         if not isinstance(programs, list):
             programs = [programs]
@@ -653,6 +669,7 @@ def fetch_film(film_id):
     return myresult
 
 
-for subfest in subfests:
-    print('subfest:', subfest)
-    fetch_base(subfest)
+# for subfest in subfests:
+#     print('subfest:', subfest)
+#     fetch_base(subfest)
+fetch_base()
