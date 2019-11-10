@@ -128,7 +128,7 @@ def fetch_base(subfest):
         root_path = tasks[task]['root_path'].split('.')
         userUrl = tasks[task]['url'].format(subfest=subfest)
         # userUrl = tasks[task]['url']
-        json_fn = os.path.join(datadir, tasks[task]['json'])
+        json_fn = os.path.join(datadir, str(subfest) + '_' + tasks[task]['json'])
         print ('Fetch ' + userUrl + ' to ' + json_fn)
 
         with urlopen_with_retry(userUrl) as url:
@@ -148,7 +148,7 @@ def fetch_base(subfest):
 
         with open(json_fn, 'w') as json_file:
             json.dump(dict_data, json_file, indent=4)
-            print ('Done with ' + json_fn)
+            # print ('Done with ' + json_fn)
 
         globals()['parse_' + task](dict_data, task)
 
@@ -224,7 +224,7 @@ def parse_publications(dict_data, task):
         if interesting_film_id and interesting_film_id > item['id']:
             print('skip', item['id'], '>', interesting_film_id)
             continue
-        print('item', i, item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
+        print(i, 'Film', item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
                 'title_original': item.get('title_original'),
@@ -462,8 +462,8 @@ def fetch_film(film_id):
     film_cursor = mydb.cursor(dictionary=True)
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
-    print(myresult)
-    print(myresult['last_update_sec'])
+    # print(myresult)
+    # print(myresult['last_update_sec'])
 
     if not myresult:
         myresult = {}
@@ -473,7 +473,7 @@ def fetch_film(film_id):
     root_path = 'film'.split('.')
     userUrl = 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/{film_id}.xml'.format(film_id=film_id)
     myresult['userUrl'] = userUrl
-    print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
+    # print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
 
     with urlopen_with_retry(userUrl) as url:
         data = url.read()
@@ -579,7 +579,7 @@ def fetch_film(film_id):
     map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
 
     film_cursor.execute(SQL, map)
-    print(film_cursor.statement)
+    # print(film_cursor.statement)
     mydb.commit()
 
 
