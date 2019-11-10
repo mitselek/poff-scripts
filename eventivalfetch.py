@@ -8,7 +8,9 @@ import xmltodict
 
 from bs4 import BeautifulSoup
 
-ANXIETY = 15 * 60; # time in seconds that will make a film anxious and willing to look for updates
+interesting_film_id = None # '528663'
+
+ANXIETY = 1 * 60; # time in seconds that will make a film anxious and willing to look for updates
 
 def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
     """
@@ -70,12 +72,14 @@ mydb = mysql.connector.connect(
 mycursor = mydb.cursor()
 
 # Eventival subfestival codes
-# subfests = {
-#
-#     1839: 'Shorts',
-#     10: 'PÖFF',
-#     9: 'Just Film',
-# }
+subfests = {
+    2651: 'KinOFF',
+    1838: 'Shortsi alam',
+    1839: 'Shorts',
+    10: 'PÖFF',
+    9: 'Just Film',
+}
+
 
 tasks = {
     'venues' : {
@@ -84,14 +88,14 @@ tasks = {
         'root_path': 'venues.venue'
     },
     'publications' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/publications-locked.xml',
-        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
+        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/publications-locked.xml',
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
         'json': 'publications.json',
         'root_path': 'films.item'
     },
     'screenings' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/screenings.xml',
-        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
+        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/screenings.xml',
+        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
         'json': 'screenings.json',
         'root_path': 'screenings.screening'
     }
@@ -104,13 +108,26 @@ def clean_empty(d, needle):
         return [v for v in (clean_empty(v, needle) for v in d) if v]
     return {k: v for k, v in ((k, clean_empty(v, needle)) for k, v in d.items()) if v and k != needle}
 
+def mySoap(text):
+    if not text:
+        return ''
+    text = text.replace('</p>', '||BR||').replace('<br>', '||BR||').replace('<br/>', '||BR||').replace('<br />', '||BR||')
+    paragraphs = text.split('||BR||')
+    paragraphs = [BeautifulSoup(p, features="html.parser").get_text().strip() for p in paragraphs]
+    paragraphs = filter(None, paragraphs)
+    text = '\n'.join(paragraphs)
+    paragraphs = text.split('\n')
+    paragraphs = [p.strip() for p in paragraphs]
+    paragraphs = filter(None, paragraphs)
+    return "<p>" + "</p>\n<p>".join(paragraphs) + "</p>"
 
-# def fetch_base(subfest):
-def fetch_base():
+
+def fetch_base(subfest):
+# def fetch_base():
     for task in tasks:
         root_path = tasks[task]['root_path'].split('.')
-        # userUrl = tasks[task]['url'].format(subfest=subfest)
-        userUrl = tasks[task]['url']
+        userUrl = tasks[task]['url'].format(subfest=subfest)
+        # userUrl = tasks[task]['url']
         json_fn = os.path.join(datadir, tasks[task]['json'])
         print ('Fetch ' + userUrl + ' to ' + json_fn)
 
@@ -204,6 +221,9 @@ def parse_publications(dict_data, task):
 
     i = 0
     for item in dict_data:
+        if interesting_film_id and interesting_film_id > item['id']:
+            print('skip', item['id'], '>', interesting_film_id)
+            continue
         print('item', i, item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
@@ -440,25 +460,22 @@ def parse_screenings(dict_data, task):
 
 
 def fetch_film(film_id):
-    # if film_id != 518746:
-        # return
     select_film_SQL = 'SELECT films.*, now()-films.updated AS last_update_sec FROM films WHERE id = %(film_id)s;'
     film_cursor = mydb.cursor(dictionary=True)
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
-    # print(myresult)
-    # print(myresult['last_update_sec'])
+    print(myresult)
+    print(myresult['last_update_sec'])
 
     if not myresult:
         myresult = {}
-    if myresult.get('last_update_sec',0) < ANXIETY:
-    # if myresult.get('last_update_sec',0) < 15 * 60:
-        return myresult
+    # if myresult.get('last_update_sec',0) < ANXIETY:
+    #     return myresult
 
     root_path = 'film'.split('.')
     userUrl = 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/{film_id}.xml'.format(film_id=film_id)
     myresult['userUrl'] = userUrl
-    # print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
+    print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
 
     with urlopen_with_retry(userUrl) as url:
         data = url.read()
@@ -527,18 +544,6 @@ def fetch_film(film_id):
             if crew['type']['name'] == type:
                 return BeautifulSoup(crew.get('text') or '', features="html.parser").get_text().strip()
 
-    def mySoap(text):
-        if not text:
-            return ''
-        text = text.replace('</p>', '||BR||').replace('<br>', '||BR||').replace('<br/>', '||BR||').replace('<br />', '||BR||')
-        paragraphs = text.split('||BR||')
-        paragraphs = [BeautifulSoup(p, features="html.parser").get_text().strip() for p in paragraphs]
-        paragraphs = filter(None, paragraphs)
-        text = '\n'.join(paragraphs)
-        paragraphs = text.split('\n')
-        paragraphs = [p.strip() for p in paragraphs]
-        paragraphs = filter(None, paragraphs)
-        return "<p>" + "</p>\n<p>".join(paragraphs) + "</p>"
 
 
     map = {'id':         dd['ids']['system_id'].get('#text'),
@@ -576,6 +581,8 @@ def fetch_film(film_id):
     map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
 
     film_cursor.execute(SQL, map)
+    print(film_cursor.statement)
+    mydb.commit()
 
 
     # Countries
@@ -660,7 +667,7 @@ def fetch_film(film_id):
     return myresult
 
 
-# for subfest in subfests:
-#     print('subfest:', subfest)
-#     fetch_base(subfest)
-fetch_base()
+for subfest in subfests:
+    print('subfest:', subfest)
+    fetch_base(subfest)
+# fetch_base()
