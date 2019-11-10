@@ -244,8 +244,6 @@ def parse_publications(dict_data, task):
     SQLs = [
         """INSERT IGNORE INTO c_poffFest (id, est)
         VALUES (%(id)s, %(est)s)
-        ON DUPLICATE KEY UPDATE
-        est=%(est)s
         ;""",
         """INSERT IGNORE INTO film_poffFest (film_id, poffFest_id)
         VALUES (%(film_id)s, %(id)s)
