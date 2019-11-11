@@ -585,14 +585,21 @@ def fetch_film(film_id):
 
 
     # Countries
-    SQL = 'INSERT IGNORE INTO film_countries (film_id, country_code) VALUES (%(id)s, %(ISOCountry)s);'
+    map = { 'id':dd['ids']['system_id'].get('#text') }
+    SQL = 'DELETE FROM film_countries WHERE film_id = %(id)s;'
+    film_cursor.execute(SQL, map)
+
+    SQL = 'INSERT IGNORE INTO film_countries (film_id, country_code, ordinal) VALUES (%(id)s, %(ISOCountry)s, %(ordinal)s);'
     ISOCountries = dd['film_info']['countries'].get('country',{})
     if not isinstance(ISOCountries, list):
         ISOCountries = [ISOCountries]
+    ordinal = 1
     for ISOCountry in ISOCountries:
         map = { 'id':dd['ids']['system_id'].get('#text'),
-                'ISOCountry':ISOCountry.get('code') }
+                'ISOCountry':ISOCountry.get('code'),
+                'ordinal':ordinal }
         film_cursor.execute(SQL, map)
+        ordinal += 1
 
 
     # Languages
