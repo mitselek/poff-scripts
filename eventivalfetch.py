@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 interesting_film_id = None # '528663'
 
-ANXIETY = 1 * 60; # time in seconds that will make a film anxious and willing to look for updates
+ANXIETY = 15 * 60; # time in seconds that will make a film anxious and willing to look for updates
 
 def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
     """
@@ -73,9 +73,9 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    2651: 'KinOFF',
-    1838: 'Shortsi alam',
     1839: 'Shorts',
+    1838: 'Shortsi alam',
+    2651: 'KinOFF',
     10: 'PÖFF',
     9: 'Just Film',
 }
@@ -205,8 +205,10 @@ def parse_venues(dict_data, task):
         mydb.commit()
 
 
+film_counter = 1
 def parse_publications(dict_data, task):
     print('Parse ' + task)
+    global film_counter
     # print('dd', dict_data)
     if not isinstance(dict_data, list):
         dict_data = [dict_data]
@@ -214,17 +216,16 @@ def parse_publications(dict_data, task):
     # return
 
     SQL = """INSERT IGNORE INTO films (id, title_eng, title_original, published)
-        VALUES (%(id)s, %(title_eng)s, %(title_original)s, subtime(now(),SEC_TO_TIME(%(anxiety)s)))
+        VALUES (%(id)s, %(title_eng)s, %(title_original)s, subtime(now(),SEC_TO_TIME(86400)))
         ON DUPLICATE KEY UPDATE
         title_eng=%(title_eng)s, title_original=%(title_original)s
     ;"""
 
-    i = 0
     for item in dict_data:
         if interesting_film_id and interesting_film_id > item['id']:
             print('skip', item['id'], '>', interesting_film_id)
             continue
-        print(i, 'Film', item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
+        print(film_counter, 'Film', item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
         map = { 'id': item['id'],
                 'title_eng': item.get('title_english'),
                 'title_original': item.get('title_original'),
@@ -235,9 +236,9 @@ def parse_publications(dict_data, task):
 
         fetch_film(item['id'])
         mydb.commit()
-        i += 1
+        film_counter += 1
 
-    print('- {i} films committed'.format(i=i))
+    print('- {film_counter} films committed'.format(film_counter=film_counter))
 
 
     # filmFestival / eventival_categorization -> categories -> category 
@@ -655,6 +656,29 @@ def fetch_film(film_id):
         for SQL in SQLs:
             film_cursor.execute(SQL, map)
 
+    # logline / film_info -> texts -> logline
+    SQLs = [
+        """INSERT IGNORE INTO film_cassette (cassette_id, film_id)
+        VALUES (%(cassette_id)s, %(film_id)s)
+        ;"""
+    ]
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4).pprint
+    # pp(dd['film_info']['texts']['logline'].get('#text','').strip(' ,').split(','))
+    logline = dd['film_info']['texts']['logline'].get('#text','').strip(' ,').split(',')
+    # print(keywords)
+    logline = [kw.strip() for kw in logline]
+    map = { 'cassette_id':film_id }
+    for film_id in logline:
+        if film_id == '':
+            continue
+        map['film_id'] = film_id
+        # pp = pprint.PrettyPrinter(indent=4).pprint
+        # pp(map)
+        for SQL in SQLs:
+            film_cursor.execute(SQL, map)
+            # print(film_cursor.statement)
+
     mydb.commit()
 
 
@@ -663,6 +687,16 @@ def fetch_film(film_id):
 
     # print('{title_original} is updated ({last_update_sec} sec old) in our records'.format(**myresult))
     return myresult
+
+
+def truncate():
+    SQLs = [
+        """TRUNCATE TABLE film_cassette;"""
+    ]
+    for SQL in SQLs:
+        trunc_cursor = mydb.cursor(dictionary=True)
+        trunc_cursor.execute(SQL, map)
+        mydb.commit()
 
 
 for subfest in subfests:
