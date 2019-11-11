@@ -623,15 +623,23 @@ def fetch_film(film_id):
 
     # filmGenre / film_info -> types -> type
     SQLs = [
-        """INSERT IGNORE INTO c_genre (id, est)
-        VALUES (%(id)s, %(est)s)
-        ON DUPLICATE KEY UPDATE
-        est=%(est)s
+        """INSERT IGNORE INTO c_genre (est)
+        VALUES (%(est)s)
         ;""",
-        """INSERT IGNORE INTO film_genres (film_id, genre_id)
-        VALUES (%(film_id)s, %(id)s)
+        """INSERT IGNORE INTO film_genres (film_id, genre_est)
+        VALUES (%(film_id)s, %(est)s)
         ;"""
     ]
+    genres = dd['film_info'].get('types',{}).get('type',[])
+    if not isinstance(genres, list):
+        genres = [genres]
+    map = { 'film_id':film_id }
+    print(genres)
+    for est in genres:
+        map['est'] = est
+        for SQL in SQLs:
+            film_cursor.execute(SQL, map)
+
 
     # filmKeyword / film_info -> texts -> directors_statement
     SQLs = [
@@ -655,6 +663,7 @@ def fetch_film(film_id):
         # pp(map)
         for SQL in SQLs:
             film_cursor.execute(SQL, map)
+
 
     # logline / film_info -> texts -> logline
     SQLs = [
