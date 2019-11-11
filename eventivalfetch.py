@@ -60,7 +60,7 @@ db = {
 }
 import mysql.connector
 
-# print(db)
+# rint(db)
 
 mydb = mysql.connector.connect(
   host = db['host'],
@@ -68,7 +68,7 @@ mydb = mysql.connector.connect(
   passwd = db['passwd'],
   database = db['database']
 )
-# print(mydb)
+# rint(mydb)
 mycursor = mydb.cursor()
 
 # Eventival subfestival codes
@@ -133,9 +133,9 @@ def fetch_base(subfest):
 
         with urlopen_with_retry(userUrl) as url:
             data = url.read()
-            # print('Got {len} bytes worth of HTTP data'.format(len=len(data)))
+            # rint('Got {len} bytes worth of HTTP data'.format(len=len(data)))
         XML_data = data.decode()
-        # print('Got {len} bytes worth of XML_data'.format(len=len(XML_data)))
+        # rint('Got {len} bytes worth of XML_data'.format(len=len(XML_data)))
 
         dict_data = clean_empty(xmltodict.parse(XML_data), '')
         for elem in root_path:
@@ -148,7 +148,7 @@ def fetch_base(subfest):
 
         with open(json_fn, 'w') as json_file:
             json.dump(dict_data, json_file, indent=4)
-            # print ('Done with ' + json_fn)
+            # rint ('Done with ' + json_fn)
 
         globals()['parse_' + task](dict_data, task)
 
@@ -180,28 +180,28 @@ def parse_venues(dict_data, task):
         for query in queries:
             SQL = query['SQL']
             mappings = query['mappings']
-            # print('item:', item)
+            # rint('item:', item)
             map = {}
             for mapping in mappings:
                 path = mappings[mapping].split('.')
                 elem = path.pop(0)
-                # print('elem:', elem)
+                # rint('elem:', elem)
                 # if elem in item:
                     # value = item[elem]
                 value = item.get(elem,{})
-                # print('value:', value)
+                # rint('value:', value)
                 for elem in path:
                     value = value.get(elem,{})
                     # if value and elem in value:
-                # print('map:', mapping, '<-', mappings[mapping], ' = ', value)
+                # rint('map:', mapping, '<-', mappings[mapping], ' = ', value)
                 if value == {}:
                     value = None;
                 map[mapping] = value
             if SQL:
-                # print(map)
+                # rint(map)
                 mycursor.execute(SQL, map)
-                # print(mycursor.statement)
-        # print('commit')
+                # rint(mycursor.statement)
+        # rint('commit')
         mydb.commit()
 
 
@@ -209,10 +209,10 @@ film_counter = 1
 def parse_publications(dict_data, task):
     print('Parse ' + task)
     global film_counter
-    # print('dd', dict_data)
+    # rint('dd', dict_data)
     if not isinstance(dict_data, list):
         dict_data = [dict_data]
-        # print('is list?', isinstance(dict_data, list))
+        # rint('is list?', isinstance(dict_data, list))
     # return
 
     SQL = """INSERT IGNORE INTO films (id, title_eng, title_original, published)
@@ -232,7 +232,7 @@ def parse_publications(dict_data, task):
                 'anxiety': ANXIETY
               }
         mycursor.execute(SQL, map)
-        # print(mycursor.statement)
+        # rint(mycursor.statement)
 
         fetch_film(item['id'])
         mydb.commit()
@@ -262,7 +262,7 @@ def parse_publications(dict_data, task):
             map = { 'id': festival['@id'], 'est': festival['#text'], 'film_id': item['id'] }
             for SQL in SQLs:
                 mycursor.execute(SQL, map)
-                # print(mycursor.statement)
+                # rint(mycursor.statement)
         mydb.commit()
     print('- Festivals committed')
 
@@ -291,7 +291,7 @@ def parse_publications(dict_data, task):
             map = { 'id': program['id'], 'est': program['name'], 'film_id': item['id'] }
             for SQL in SQLs:
                 mycursor.execute(SQL, map)
-                # print(mycursor.statement)
+                # rint(mycursor.statement)
         mydb.commit()
     print('- Programs committed')
 
@@ -335,7 +335,7 @@ def parse_screenings(dict_data, task):
               , 'screening_info_rus': item.get('additional_info',{}).get('ru')
               }
         mycursor.execute(SQL, map)
-        # print(i, mycursor.statement)
+        # rint(i, mycursor.statement)
 
         # screeningType / type_of_screening
         screeningSQLs = [
@@ -344,9 +344,9 @@ def parse_screenings(dict_data, task):
         ]
         map = { 'id': item['id'], 'type_of_screening': item.get('type_of_screening', 'regular') }
         for screeningSQL in screeningSQLs:
-            # print('got presenter for presentation for screening', screeningSQL, map)
+            # rint('got presenter for presentation for screening', screeningSQL, map)
             mycursor.execute(screeningSQL, map)
-            # print(mycursor.statement)
+            # rint(mycursor.statement)
 
         # Film Languages
         flSQL = 'INSERT IGNORE INTO screening_film_languages (screening_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
@@ -401,9 +401,9 @@ def parse_screenings(dict_data, task):
                     map = { 'person_id': presenter['@id'], 'person_name': presenter['name'],
                         'screening_id': item['id'], 'part': part, 'role': role, 'relation_name': relation }
                     for SQL in SQLs:
-                        # print('got presenter for presentation for screening', SQL, map)
+                        # rint('got presenter for presentation for screening', SQL, map)
                         mycursor.execute(SQL, map)
-                        # print(mycursor.statement)
+                        # rint(mycursor.statement)
         if item['presentation'].get('guests'):
             (part, role) = ('presentation', 'guest')
             guests = item['presentation'].get('guests',{}).get('person')
@@ -417,9 +417,9 @@ def parse_screenings(dict_data, task):
                     map = { 'person_id': guest['@id'], 'person_name': guest['name'],
                         'screening_id': item['id'], 'part': part, 'role': role, 'relation_name': relation }
                     for SQL in SQLs:
-                        # print('got guest for presentation for screening', SQL, map)
+                        # rint('got guest for presentation for screening', SQL, map)
                         mycursor.execute(SQL, map)
-                        # print(mycursor.statement)
+                        # rint(mycursor.statement)
         if item['qa'].get('presenters'):
             (part, role) = ('qa', 'presenter')
             presenters = item['qa'].get('presenters',{}).get('person')
@@ -433,9 +433,9 @@ def parse_screenings(dict_data, task):
                     map = { 'person_id': presenter['@id'], 'person_name': presenter['name'],
                         'screening_id': item['id'], 'part': part, 'role': role, 'relation_name': relation }
                     for SQL in SQLs:
-                        # print('got presenter for qa for screening', SQL, map)
+                        # rint('got presenter for qa for screening', SQL, map)
                         mycursor.execute(SQL, map)
-                        # print(mycursor.statement)
+                        # rint(mycursor.statement)
         if item['qa'].get('guests'):
             (part, role) = ('qa', 'guest')
             guests = item['qa'].get('guests',{}).get('person')
@@ -449,9 +449,9 @@ def parse_screenings(dict_data, task):
                     map = { 'person_id': guest['@id'], 'person_name': guest['name'],
                         'screening_id': item['id'], 'part': part, 'role': role, 'relation_name': relation }
                     for SQL in SQLs:
-                        # print('got guest for qa for screening', SQL, map)
+                        # rint('got guest for qa for screening', SQL, map)
                         mycursor.execute(SQL, map)
-                        # print(mycursor.statement)
+                        # rint(mycursor.statement)
 
         mydb.commit()
 
@@ -463,8 +463,8 @@ def fetch_film(film_id):
     film_cursor = mydb.cursor(dictionary=True)
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
-    # print(myresult)
-    # print(myresult['last_update_sec'])
+    # rint(myresult)
+    # rint(myresult['last_update_sec'])
 
     if not myresult:
         myresult = {}
@@ -474,7 +474,7 @@ def fetch_film(film_id):
     root_path = 'film'.split('.')
     userUrl = 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/{film_id}.xml'.format(film_id=film_id)
     myresult['userUrl'] = userUrl
-    # print('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
+    # rint('Fetching {title_eng} [{id}] from {userUrl}'.format(**myresult))
 
     with urlopen_with_retry(userUrl) as url:
         data = url.read()
@@ -485,7 +485,7 @@ def fetch_film(film_id):
     json_fn = os.path.join(datadir, 'films', '{id}.json'.format(id=myresult['id']))
     with open(json_fn, 'w') as json_file:
         json.dump(clean_empty(dd, '@label'), json_file, indent=4)
-    # print ('Done with ' + json_fn)
+    # rint ('Done with ' + json_fn)
 
     SQL = """INSERT IGNORE INTO films (id, updated,
             title_est, title_eng, title_rus, title_original,
@@ -580,7 +580,7 @@ def fetch_film(film_id):
     map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
 
     film_cursor.execute(SQL, map)
-    # print(film_cursor.statement)
+    # rint(film_cursor.statement)
     mydb.commit()
 
 
@@ -641,7 +641,7 @@ def fetch_film(film_id):
     if not isinstance(genres, list):
         genres = [genres]
     map = { 'film_id':film_id }
-    print(genres)
+    # rint(genres)
     for est in genres:
         map['est'] = est
         for SQL in SQLs:
@@ -660,7 +660,7 @@ def fetch_film(film_id):
     import pprint
     pp = pprint.PrettyPrinter(indent=4).pprint
     keywords = dd['film_info']['texts']['directors_statement'].get('#text','').strip(' ,').split(',')
-    # print(keywords)
+    # rint(keywords)
     keywords = [kw.strip() for kw in keywords]
     map = { 'film_id':film_id }
     for keyword in keywords:
@@ -682,7 +682,7 @@ def fetch_film(film_id):
     pp = pprint.PrettyPrinter(indent=4).pprint
     # pp(dd['film_info']['texts']['logline'].get('#text','').strip(' ,').split(','))
     logline = dd['film_info']['texts']['logline'].get('#text','').strip(' ,').split(',')
-    # print(keywords)
+    # rint(keywords)
     logline = [kw.strip() for kw in logline]
     map = { 'cassette_id':film_id }
     for film_id in logline:
@@ -693,7 +693,7 @@ def fetch_film(film_id):
         # pp(map)
         for SQL in SQLs:
             film_cursor.execute(SQL, map)
-            # print(film_cursor.statement)
+            # rint(film_cursor.statement)
 
     mydb.commit()
 
@@ -701,7 +701,7 @@ def fetch_film(film_id):
     film_cursor.execute(select_film_SQL, {'film_id': film_id})
     myresult = film_cursor.fetchone()
 
-    # print('{title_original} is updated ({last_update_sec} sec old) in our records'.format(**myresult))
+    # rint('{title_original} is updated ({last_update_sec} sec old) in our records'.format(**myresult))
     return myresult
 
 
