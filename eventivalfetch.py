@@ -388,6 +388,9 @@ def parse_screenings(dict_data, task):
         ;"""
         ]
     for item in dict_data:
+        map = { 'id':item['id'] }
+        SQL = 'DELETE FROM screening_persons WHERE screening_id = %(id)s;'
+        mycursor.execute(SQL, map)
         if item['presentation'].get('presenters'):
             (part, role) = ('presentation', 'presenter')
             presenters = item['presentation'].get('presenters',{}).get('person')
