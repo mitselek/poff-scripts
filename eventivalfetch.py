@@ -552,7 +552,7 @@ def fetch_film(film_id):
         'runtime':       dd['film_info']['runtime']['seconds'],
         'year':          dd['film_info']['completion_date']['year']         or '',
         'premiere_type': dd['film_info']['premiere_type'].get('#text')      or '',
-        'trailer_url':   dd['film_info']['online_trailer_url'].get('#text') or '',
+        'trailer_url':   dd['film_info']['online_trailer_url'].get('#text', dd['film_info']['youtube_url'].get('#text')) or '',
         'directors':                   BeautifulSoup(dd['publications'].get('en',{}).get('directors')             or '', features="html.parser").get_text().strip(),
         'producers':                   BeautifulSoup(dd['publications'].get('en',{}).get('producers')             or '', features="html.parser").get_text().strip(),
         'writers':                     BeautifulSoup(dd['publications'].get('en',{}).get('writers')               or '', features="html.parser").get_text().strip(),
