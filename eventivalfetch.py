@@ -205,7 +205,7 @@ def parse_venues(dict_data, task):
         mydb.commit()
 
 
-film_counter = 1
+film_counter = 0
 def parse_publications(dict_data, task):
     print('Parse ' + task)
     global film_counter
@@ -222,6 +222,7 @@ def parse_publications(dict_data, task):
     ;"""
 
     for item in dict_data:
+        film_counter += 1
         if interesting_film_id and interesting_film_id > item['id']:
             print('skip', item['id'], '>', interesting_film_id)
             continue
@@ -236,7 +237,6 @@ def parse_publications(dict_data, task):
 
         fetch_film(item['id'])
         mydb.commit()
-        film_counter += 1
 
     print('- {film_counter} films committed'.format(film_counter=film_counter))
 
