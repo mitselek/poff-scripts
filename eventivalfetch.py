@@ -73,10 +73,10 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
+    10: 'PÖFF',
     1839: 'Shorts',
     1838: 'Shortsi alam',
     2651: 'KinOFF',
-    10: 'PÖFF',
     9: 'Just Film',
 }
 
@@ -380,6 +380,7 @@ def parse_screenings(dict_data, task):
     SQLs = [
         """INSERT IGNORE INTO persons (id, name)
         VALUES (%(person_id)s, %(person_name)s)
+        ON DUPLICATE KEY UPDATE name=%(person_name)s
         ;""",
         """INSERT IGNORE INTO screening_persons (screening_id, person_id, relation_id, part, role)
         SELECT %(screening_id)s, %(person_id)s, id, %(part)s, %(role)s
