@@ -73,9 +73,9 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    10: 'PÖFF',
-    1839: 'Shorts',
     1838: 'Shortsi alam',
+    1839: 'Shorts',
+    10: 'PÖFF',
     2651: 'KinOFF',
     9: 'Just Film',
 }
@@ -507,7 +507,7 @@ def fetch_film(film_id):
             distributors,
             festivals_est, festivals_eng, festivals_rus,
             directors_filmography_est, directors_filmography_eng, directors_filmography_rus)
-        VALUES (%(id)s, now(),
+        VALUES (%(film_id)s, now(),
             %(title_est)s, %(title_eng)s, %(title_rus)s, %(title_original)s,
             %(runtime)s, %(year)s, %(premiere_type)s, %(trailer_url)s,
             %(directors_bio_est)s, %(directors_bio_eng)s, %(directors_bio_rus)s,
@@ -549,7 +549,7 @@ def fetch_film(film_id):
 
 
 
-    map = {'id':         dd['ids']['system_id'].get('#text'),
+    map = {'film_id':    film_id,
         'runtime':       dd['film_info']['runtime']['seconds'],
         'year':          dd['film_info']['completion_date']['year']         or '',
         'premiere_type': dd['film_info']['premiere_type'].get('#text')      or '',
@@ -589,25 +589,28 @@ def fetch_film(film_id):
 
 
     # Countries
-    map = { 'id':dd['ids']['system_id'].get('#text') }
-    SQL = 'DELETE FROM film_countries WHERE film_id = %(id)s;'
+    map = { 'film_id': film_id }
+    SQL = 'DELETE FROM film_countries WHERE film_id = %(film_id)s;'
     film_cursor.execute(SQL, map)
 
-    SQL = 'INSERT IGNORE INTO film_countries (film_id, country_code, ordinal) VALUES (%(id)s, %(ISOCountry)s, %(ordinal)s);'
+    SQL = 'INSERT IGNORE INTO film_countries (film_id, country_code, ordinal) VALUES (%(film_id)s, %(ISOCountry)s, %(ordinal)s);'
     ISOCountries = dd['film_info']['countries'].get('country',{})
     if not isinstance(ISOCountries, list):
         ISOCountries = [ISOCountries]
     ordinal = 1
     for ISOCountry in ISOCountries:
-        map = { 'id':dd['ids']['system_id'].get('#text'),
-                'ISOCountry':ISOCountry.get('code'),
-                'ordinal':ordinal }
+        map['ISOCountry'] = ISOCountry.get('code')
+        map['ordinal'] = ordinal
         film_cursor.execute(SQL, map)
         ordinal += 1
 
 
     # Languages
-    SQL = 'INSERT IGNORE INTO film_languages (film_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
+    map = { 'film_id': film_id }
+    SQL = 'DELETE FROM film_languages WHERE film_id = %(film_id)s;'
+    film_cursor.execute(SQL, map)
+
+    SQL = 'INSERT IGNORE INTO film_languages (film_id, language_code) VALUES (%(film_id)s, %(ISOLanguage)s);'
     if 'language' in dd['film_info']['languages']:
         ISOLanguages = dd['film_info']['languages']['language']
     else:
@@ -615,24 +618,27 @@ def fetch_film(film_id):
     if not isinstance(ISOLanguages, list):
         ISOLanguages = [ISOLanguages]
     for ISOLanguage in ISOLanguages:
-        map = { 'id':dd['ids']['system_id'].get('#text'),
-                'ISOLanguage':ISOLanguage['code'] }
+        map['ISOLanguage'] = ISOLanguage['code']
         film_cursor.execute(SQL, map)
 
 
     # filmType / film_info -> length_type
     SQLs = [
         """INSERT IGNORE INTO c_type (id, est)
-        VALUES (%(id)s, %(est)s)
+        VALUES (%(film_id)s, %(est)s)
         ON DUPLICATE KEY UPDATE
         est=%(est)s
         ;""",
         """INSERT IGNORE INTO film_types (film_id, type_id)
-        VALUES (%(film_id)s, %(id)s)
+        VALUES (%(film_id)s, %(type_id)s)
         ;"""
     ]
 
     # filmGenre / film_info -> types -> type
+    map = { 'film_id': film_id }
+    SQL = 'DELETE FROM film_genres WHERE film_id = %(film_id)s;'
+    film_cursor.execute(SQL, map)
+
     SQLs = [
         """INSERT IGNORE INTO c_genre (est)
         VALUES (%(est)s)
@@ -644,8 +650,6 @@ def fetch_film(film_id):
     genres = dd['film_info'].get('types',{}).get('type',[])
     if not isinstance(genres, list):
         genres = [genres]
-    map = { 'film_id':film_id }
-    # rint(genres)
     for est in genres:
         map['est'] = est
         for SQL in SQLs:
@@ -653,6 +657,10 @@ def fetch_film(film_id):
 
 
     # filmKeyword / film_info -> texts -> directors_statement
+    map = { 'film_id': film_id }
+    SQL = 'DELETE FROM film_keywords WHERE film_id = %(film_id)s;'
+    film_cursor.execute(SQL, map)
+
     SQLs = [
         """INSERT IGNORE INTO c_keyword (est)
         VALUES (%(est)s)
@@ -664,19 +672,20 @@ def fetch_film(film_id):
     import pprint
     pp = pprint.PrettyPrinter(indent=4).pprint
     keywords = dd['film_info']['texts']['directors_statement'].get('#text','').strip(' ,').split(',')
-    # rint(keywords)
     keywords = [kw.strip() for kw in keywords]
-    map = { 'film_id':film_id }
     for keyword in keywords:
         if keyword == '':
             continue
         map['est'] = keyword
-        # pp(map)
         for SQL in SQLs:
             film_cursor.execute(SQL, map)
 
 
     # logline / film_info -> texts -> logline
+    map = { 'cassette_id': film_id }
+    SQL = 'DELETE FROM film_cassette WHERE cassette_id = %(cassette_id)s;'
+    film_cursor.execute(SQL, map)
+
     SQLs = [
         """INSERT IGNORE INTO film_cassette (cassette_id, film_id)
         VALUES (%(cassette_id)s, %(film_id)s)
@@ -688,7 +697,6 @@ def fetch_film(film_id):
     logline = dd['film_info']['texts']['logline'].get('#text','').strip(' ,').split(',')
     # rint(keywords)
     logline = [kw.strip() for kw in logline]
-    map = { 'cassette_id':film_id }
     for film_id in logline:
         if film_id == '':
             continue
