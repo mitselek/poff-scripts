@@ -73,9 +73,9 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
+    10: 'PÖFF',
     1838: 'Shortsi alam',
     1839: 'Shorts',
-    10: 'PÖFF',
     2651: 'KinOFF',
     9: 'Just Film',
 }
@@ -108,10 +108,17 @@ def clean_empty(d, needle):
         return [v for v in (clean_empty(v, needle) for v in d) if v]
     return {k: v for k, v in ((k, clean_empty(v, needle)) for k, v in d.items()) if v and k != needle}
 
+import re
+findquotes = re.compile(r'"([^"]*)"')
 def mySoap(text):
+
+    def curly(m):
+        return '“' + m.group(1) + '”'
+
     if not text:
         return ''
     text = text.replace('</p>', '||BR||').replace('<br>', '||BR||').replace('<br/>', '||BR||').replace('<br />', '||BR||')
+    text = findquotes.sub(curly, text)
     paragraphs = text.split('||BR||')
     paragraphs = [BeautifulSoup(p, features="html.parser").get_text().strip() for p in paragraphs]
     paragraphs = filter(None, paragraphs)
@@ -129,7 +136,7 @@ def fetch_base(subfest):
         userUrl = tasks[task]['url'].format(subfest=subfest)
         # userUrl = tasks[task]['url']
         json_fn = os.path.join(datadir, str(subfest) + '_' + tasks[task]['json'])
-        print ('Fetch ' + userUrl + ' to ' + json_fn)
+        print('Fetch ' + userUrl + ' to ' + json_fn)
 
         with urlopen_with_retry(userUrl) as url:
             data = url.read()
@@ -222,6 +229,8 @@ def parse_publications(dict_data, task):
     ;"""
 
     for item in dict_data:
+        # if item['id'] != '521140':
+        #     continue
         film_counter += 1
         if interesting_film_id and interesting_film_id > item['id']:
             print('skip', item['id'], '>', interesting_film_id)
@@ -282,7 +291,7 @@ def parse_publications(dict_data, task):
         # try:
         programs = item['eventival_categorization'].get('sections',{}).get('section',[])
         # except Exception as e:
-        #     print('No sections, skipping ', item)
+        #     rint('No sections, skipping ', item)
         #     continue
 
         if not isinstance(programs, list):
@@ -302,12 +311,12 @@ def parse_screenings(dict_data, task):
         dict_data = [dict_data]
     # return
 
-    SQL = """INSERT IGNORE INTO screenings ( id
+    screeningSQL = """INSERT IGNORE INTO screenings ( id
         , screening_code, film_id, cinema_hall_id, venue_id
         , start_date, start_time, ticketing_url
         , screening_duration_minutes, presentation_duration_minutes, qa_duration_minutes
         , screening_info_est, screening_info_eng, screening_info_rus)
-        VALUES ( %(id)s
+        VALUES ( %(screening_id)s
         , %(screening_code)s, %(film_id)s, %(cinema_hall_id)s, %(venue_id)s
         , %(start_date)s, %(start_time)s, %(ticketing_url)s
         , %(screening_duration_minutes)s, %(presentation_duration_minutes)s, %(qa_duration_minutes)s
@@ -323,9 +332,11 @@ def parse_screenings(dict_data, task):
     i = 0
     for item in dict_data:
         i+=1
+        screening_id = item['id']
+        film_id = item['film']['id']
         # continue
-        map = { 'id': item['id']
-              , 'screening_code': item.get('code'), 'film_id': item['film']['id'], 'cinema_hall_id': item.get('cinema_hall_id'), 'venue_id': item['venue_id']
+        map = { 'screening_id': screening_id
+              , 'screening_code': item.get('code'), 'film_id': film_id, 'cinema_hall_id': item.get('cinema_hall_id'), 'venue_id': item['venue_id']
               , 'start_date': item['start'][:10], 'start_time': item['start'][11:], 'ticketing_url': item.get('ticketing_url')
               , 'screening_duration_minutes': item['duration_screening_only_minutes']
               , 'presentation_duration_minutes': item.get('presentation',{}).get('duration')
@@ -334,46 +345,60 @@ def parse_screenings(dict_data, task):
               , 'screening_info_eng': item.get('additional_info',{}).get('en')
               , 'screening_info_rus': item.get('additional_info',{}).get('ru')
               }
-        mycursor.execute(SQL, map)
+        mycursor.execute(screeningSQL, map)
         # rint(i, mycursor.statement)
 
         # screeningType / type_of_screening
-        screeningSQLs = [
-        # "INSERT IGNORE INTO c_screeningType (code, est) VALUES (%(est)s, %(est)s);",
-        "UPDATE screenings SET type_of_screening = %(type_of_screening)s WHERE id = %(id)s;"
+        SQLs = [
+            # "INSERT IGNORE INTO c_screeningType (code, est) VALUES (%(est)s, %(est)s);",
+            "UPDATE screenings SET type_of_screening = %(type_of_screening)s WHERE id = %(id)s;"
         ]
-        map = { 'id': item['id'], 'type_of_screening': item.get('type_of_screening', 'regular') }
-        for screeningSQL in screeningSQLs:
-            # rint('got presenter for presentation for screening', screeningSQL, map)
-            mycursor.execute(screeningSQL, map)
+        map = { 'id': screening_id, 'type_of_screening': item.get('type_of_screening', 'regular') }
+        for SQL in SQLs:
+            # rint('got presenter for presentation for screening', SQL, map)
+            mycursor.execute(SQL, map)
             # rint(mycursor.statement)
 
         # Film Languages
-        flSQL = 'INSERT IGNORE INTO screening_film_languages (screening_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
+        map = { 'screening_id': screening_id }
+        SQL = 'DELETE FROM screening_film_languages WHERE screening_id = %(screening_id)s;'
+        mycursor.execute(SQL, map)
+        SQL = 'INSERT IGNORE INTO screening_film_languages (screening_id, language_code) VALUES (%(screening_id)s, %(ISOLanguage)s);'
         ISOLanguages = item.get('film',{}).get('languages',{}).get('print',{}).get('language',[])
         if not isinstance(ISOLanguages, list):
             ISOLanguages = [ISOLanguages]
         for ISOLanguage in ISOLanguages:
-            map = { 'id':item['id'],
-                    'ISOLanguage':ISOLanguage }
-            mycursor.execute(flSQL, map)
+            map['ISOLanguage'] = ISOLanguage
+            mycursor.execute(SQL, map)
 
         # Subtitle Languages
-        slSQL = 'INSERT IGNORE INTO screening_subtitle_languages (screening_id, language_code) VALUES (%(id)s, %(ISOLanguage)s);'
-        ISOLanguages = item.get('film',{}).get('subtitle_languages',{}).get('print',{}).get('language',[])
+        # TODO: get language from translations, not print. copy from film subtitle languages, if missing
+        map = { 'screening_id': screening_id }
+        SQL = 'DELETE FROM screening_subtitle_languages WHERE screening_id = %(screening_id)s;'
+        mycursor.execute(SQL, map)
+        SQL = 'INSERT IGNORE INTO screening_subtitle_languages (screening_id, language_code) VALUES (%(screening_id)s, %(ISOLanguage)s);'
+        ISOLanguages = item.get('film',{}).get('subtitle_languages',{}).get('translations',{}).get('language',[])
         if not isinstance(ISOLanguages, list):
             ISOLanguages = [ISOLanguages]
-        for ISOLanguage in ISOLanguages:
-            map = { 'id':item['id'],
-                    'ISOLanguage':ISOLanguage }
-            mycursor.execute(slSQL, map)
-
+        # rint(ISOLanguages)
+        if len(ISOLanguages):
+            for ISOLanguage in ISOLanguages:
+                map['ISOLanguage'] = ISOLanguage
+                mycursor.execute(SQL, map)
+                # rint(mycursor.statement)
+        else:
+            SQL = """INSERT IGNORE INTO screening_subtitle_languages
+                SELECT %(screening_id)s, language_code
+                FROM film_subtitle_languages
+                WHERE film_id = %(film_id)s
+            ;"""
+            map['film_id'] = film_id
+            mycursor.execute(SQL, map)
+            # rint(mycursor.statement)
 
 
         mydb.commit()
     print('- Screenings committed')
-
-
 
 
     # Persons
@@ -446,7 +471,7 @@ def parse_screenings(dict_data, task):
             if not isinstance(guests, list):
                 guests = [guests]
             for guest in guests:
-                relations = guest.get('relations',{}).get('relation')
+                relations = guest.get('relations',{}).get('relation', '')
                 if not isinstance(relations, list):
                     relations = [relations]
                 for relation in relations:
@@ -496,6 +521,7 @@ def fetch_film(film_id):
             runtime, year, premiere_type, trailer_url,
             directors_bio_est, directors_bio_eng, directors_bio_rus,
             synopsis_est, synopsis_eng, synopsis_rus,
+            extra_image, extra_text_est, extra_text_eng, extra_text_rus,
             directors,
             producers,
             writers,
@@ -512,6 +538,7 @@ def fetch_film(film_id):
             %(runtime)s, %(year)s, %(premiere_type)s, %(trailer_url)s,
             %(directors_bio_est)s, %(directors_bio_eng)s, %(directors_bio_rus)s,
             %(synopsis_est)s, %(synopsis_eng)s, %(synopsis_rus)s,
+            %(extra_image)s, %(extra_text_est)s, %(extra_text_eng)s, %(extra_text_rus)s,
             %(directors)s,
             %(producers)s,
             %(writers)s,
@@ -529,6 +556,7 @@ def fetch_film(film_id):
             runtime = %(runtime)s, year = %(year)s, premiere_type = %(premiere_type)s, trailer_url = %(trailer_url)s,
             directors_bio_est = %(directors_bio_est)s, directors_bio_eng = %(directors_bio_eng)s, directors_bio_rus = %(directors_bio_rus)s,
             synopsis_est = %(synopsis_est)s, synopsis_eng = %(synopsis_eng)s, synopsis_rus = %(synopsis_rus)s,
+            extra_image = %(extra_image)s, extra_text_est = %(extra_text_est)s, extra_text_eng = %(extra_text_eng)s, extra_text_rus = %(extra_text_rus)s,
             directors = %(directors)s,
             producers = %(producers)s,
             writers = %(writers)s,
@@ -576,6 +604,10 @@ def fetch_film(film_id):
         'directors_bio_eng':           BeautifulSoup(dd['publications'].get('en',{}).get('directors_bio')         or '', features="html.parser").get_text().strip(),
         'directors_filmography_est':   BeautifulSoup(dd['publications'].get('en',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
         'directors_filmography_eng':   BeautifulSoup(dd['publications'].get('en',{}).get('directors_filmography') or '', features="html.parser").get_text().strip(),
+        'extra_image':   dd['film_info']['estimated_budget'].get('#text')   or '',
+        'extra_text_est':              BeautifulSoup(dd['publications'].get('et',{}).get('shooting_formats')      or '', features="html.parser").get_text().strip(),
+        'extra_text_eng':              BeautifulSoup(dd['publications'].get('en',{}).get('shooting_formats')      or '', features="html.parser").get_text().strip(),
+        'extra_text_rus':              BeautifulSoup(dd['publications'].get('ru',{}).get('shooting_formats')      or '', features="html.parser").get_text().strip(),
     }
     map['title_rus'] =                 BeautifulSoup(dd['titles']['title_custom'].get('#text')                    or map['title_eng'], features="html.parser").get_text().strip()
     map['synopsis_rus'] =              mySoap(dd['publications'].get('ru',{}).get('synopsis_long',''))            or map['synopsis_eng']
@@ -584,7 +616,7 @@ def fetch_film(film_id):
     map['directors_filmography_rus'] = BeautifulSoup(dd['publications'].get('ru',{}).get('directors_filmography') or map['directors_filmography_eng'], features="html.parser").get_text().strip()
 
     film_cursor.execute(SQL, map)
-    # rint(film_cursor.statement)
+    # print(film_cursor.statement)
     mydb.commit()
 
 
@@ -620,6 +652,25 @@ def fetch_film(film_id):
     for ISOLanguage in ISOLanguages:
         map['ISOLanguage'] = ISOLanguage['code']
         film_cursor.execute(SQL, map)
+
+
+    # Subtitle Languages
+    map = { 'film_id': film_id }
+    SQL = 'DELETE FROM film_subtitle_languages WHERE film_id = %(film_id)s;'
+    film_cursor.execute(SQL, map)
+
+    slSQL = 'INSERT IGNORE INTO film_subtitle_languages (film_id, language_code) VALUES (%(film_id)s, %(ISOLanguage)s);'
+    film_subtitle_languages = dd.get('film_info',{}).get('subtitle_languages',{}).get('subtitle_language',[])
+    if not isinstance(film_subtitle_languages, list):
+        film_subtitle_languages = [film_subtitle_languages]
+    for fsl in film_subtitle_languages:
+        if fsl.get('code'):
+            map['ISOLanguage'] = fsl.get('code')
+            film_cursor.execute(slSQL, map)
+            # print(film_cursor.statement)
+
+
+    mydb.commit()
 
 
     # filmType / film_info -> length_type
