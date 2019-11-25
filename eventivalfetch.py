@@ -8,7 +8,7 @@ import xmltodict
 
 from bs4 import BeautifulSoup
 
-interesting_film_id = None # '528663'
+interesting_film_id = None # 521116
 
 ANXIETY = 15 * 60; # time in seconds that will make a film anxious and willing to look for updates
 
@@ -73,33 +73,52 @@ mycursor = mydb.cursor()
 
 # Eventival subfestival codes
 subfests = {
-    10: 'PÖFF',
-    1838: 'Shortsi alam',
     1839: 'Shorts',
+    1838: 'Shortsi alam',
     2651: 'KinOFF',
     9: 'Just Film',
+    10: 'PÖFF',
 }
 
 
-tasks = {
-    'venues' : {
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
-        'json': 'venues.json',
-        'root_path': 'venues.venue'
-    },
-    'publications' : {
-        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/publications-locked.xml',
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
-        'json': 'publications.json',
-        'root_path': 'films.item'
-    },
-    'screenings' : {
-        # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/screenings.xml',
-        'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
-        'json': 'screenings.json',
-        'root_path': 'screenings.screening'
+if interesting_film_id:
+    tasks = {
+        'venues' : {
+            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
+            'json': 'venues.json',
+            'root_path': 'venues.venue'
+        },
+        'publications' : {
+            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/publications-locked.xml',
+            'json': 'publications.json',
+            'root_path': 'films.item'
+        },
+        'screenings' : {
+            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/screenings.xml',
+            'json': 'screenings.json',
+            'root_path': 'screenings.screening'
+        }
     }
-}
+else:
+    tasks = {
+        'venues' : {
+            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/venues.xml',
+            'json': 'venues.json',
+            'root_path': 'venues.venue'
+        },
+        'publications' : {
+            # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/publications-locked.xml',
+            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/publications-locked.xml',
+            'json': 'publications.json',
+            'root_path': 'films.item'
+        },
+        'screenings' : {
+            # 'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/screenings.xml',
+            'url': 'https://eventival.eu/poff/23/en/ws/VYyOdFh8AFs6XBr7Ch30tu12FljKqS/films/categories/{subfest}/screenings.xml',
+            'json': 'screenings.json',
+            'root_path': 'screenings.screening'
+        }
+    }
 
 def clean_empty(d, needle):
     if not isinstance(d, (dict, list)):
@@ -110,6 +129,7 @@ def clean_empty(d, needle):
 
 import re
 findquotes = re.compile(r'"([^"]*)"')
+find_brs = re.compile(r'<br[^>]*>')
 def mySoap(text):
 
     def curly(m):
@@ -117,8 +137,12 @@ def mySoap(text):
 
     if not text:
         return ''
-    text = text.replace('</p>', '||BR||').replace('<br>', '||BR||').replace('<br/>', '||BR||').replace('<br />', '||BR||')
+    text = text.replace('</p>', '||BR||')
+    # rint(text + '\n*****')
     text = findquotes.sub(curly, text)
+    # rint(text + '\n*****')
+    text = find_brs.sub('||BR||', text)
+    # rint(text + '\n*****')
     paragraphs = text.split('||BR||')
     paragraphs = [BeautifulSoup(p, features="html.parser").get_text().strip() for p in paragraphs]
     paragraphs = filter(None, paragraphs)
@@ -129,12 +153,14 @@ def mySoap(text):
     return "<p>" + "</p>\n<p>".join(paragraphs) + "</p>"
 
 
-def fetch_base(subfest):
+def fetch_base(subfest = None):
 # def fetch_base():
     for task in tasks:
         root_path = tasks[task]['root_path'].split('.')
-        userUrl = tasks[task]['url'].format(subfest=subfest)
-        # userUrl = tasks[task]['url']
+        if interesting_film_id:
+            userUrl = tasks[task]['url']
+        else:
+            userUrl = tasks[task]['url'].format(subfest=subfest)
         json_fn = os.path.join(datadir, str(subfest) + '_' + tasks[task]['json'])
         print('Fetch ' + userUrl + ' to ' + json_fn)
 
@@ -229,11 +255,12 @@ def parse_publications(dict_data, task):
     ;"""
 
     for item in dict_data:
+        film_id = item['id']
         # if item['id'] != '521140':
         #     continue
         film_counter += 1
-        if interesting_film_id and interesting_film_id > item['id']:
-            print('skip', item['id'], '>', interesting_film_id)
+        if interesting_film_id and interesting_film_id != int(film_id):
+            print('skip', film_id, '!=', interesting_film_id)
             continue
         print(film_counter, 'Film', item['id'], item.get('title_english', 'WARNING, Film has no title_english.          *** *** *** *** ***'))
         map = { 'id': item['id'],
@@ -778,7 +805,9 @@ def truncate():
         mydb.commit()
 
 
-for subfest in subfests:
-    print('subfest:', subfest)
-    fetch_base(subfest)
-# fetch_base()
+if interesting_film_id:
+    fetch_base()
+else:
+    for subfest in subfests:
+        print('subfest:', subfest)
+        fetch_base(subfest)
